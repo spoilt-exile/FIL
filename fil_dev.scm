@@ -1,4 +1,4 @@
-;FIL v1.0r3
+;FIL v1.5 alpha1
 ;ЛИПС (Лаборатория имитации пленочных снимков) = FIL;
 ;Список задач (ver. 1.5):
 ; - переработка спецификаций;
@@ -48,6 +48,8 @@
 ;Процедуры:			Статус		Версия
 ;=======================ЯДРО==========================
 ;fil-ng-core			stable		1.0
+;fil-clr-handle			rc		---
+;fil-grain-handle		alpha		---
 ;fil-source-handle		stable		---
 ;===================ПРЕ-ПРОЦЕССЫ======================
 ;fil-pre-vignette		stable		1.0
@@ -170,18 +172,7 @@
 	    )
 
 	    ;Инициализация листа процессов
-	    (if (= color_proc 0)
-	      (fil-int-sov image clr_tar c_imh c_imw)
-	    )
-	    (if (= color_proc 1)
-	      (fil-int-gray image clr_tar)
-	    )
-	    (if (= color_proc 2)
-	      (fil-int-lomo image clr_tar)
-	    )
-	    (if (= color_proc 3)
-	      (fil-int-sepia image clr_tar c_imh c_imw c_fore)
-	    )
+	    (eval (fil-clr-handle FALSE color_proc))
 
 	    ;Захват готового слоя и его имени
 	    (set! clr_res
@@ -249,6 +240,57 @@
   (gimp-context-pop)
 )
 
+;fil-clr-handle
+;МОДУЛЬ ЯДРА
+;Входные переменные:
+;КОМБИНАЦИЯ - TRUE если требуется возвратить лист процессов / номер процесса для возвращения блока кода;
+;Возвращаемые значения:
+;КОМБИНАЦИЯ - лист с текстовыми названиями процессов / блок кода для исполнения;
+(define (fil-clr-handle param clr_id)
+(define clr-handle)
+(define clr-list)
+
+;Список с именами цветовых процессов процессов
+(set! clr-list
+  (list
+  
+  ;Процесс "СОВ" с id=0
+  "СОВ"
+
+  ;Процесс "Ч/Б" с id=1
+  "Ч/Б"
+  
+  ;Процесс "Ломо" с id=2
+  "Ломо"
+
+  ;Процесс "Сепия" id=3
+  "Сепия"
+  )
+)
+(if (= param TRUE)
+  (set! clr-handle clr-list)
+  (begin
+    
+    ;Список с блоками запуска цветовых процессов
+    (cond
+
+    ;Блок запуска процесса "СОВ"
+    ((= clr_id 0) (set! clr-handle (quote (fil-int-sov image clr_tar c_imh c_imw))))
+
+    ;Блок запуска процесса "Ч/Б"
+    ((= clr_id 1) (set! clr-handle (quote (fil-int-gray image clr_tar))))
+
+    ;Блок запуска процесса "Ломо"
+    ((= clr_id 2) (set! clr-handle (quote (fil-int-lomo image clr_tar))))
+
+    ;Блок запуска процесса "Сепия"
+    ((= clr_id 3) (set! clr-handle (quote (fil-int-sepia image clr_tar c_imh c_imw c_fore))))
+    )
+  )
+)
+clr-handle
+)
+
 (script-fu-register
 "fil-ng-core"
 "_ЛИПС v1.0"
@@ -259,7 +301,7 @@
 "*"
 SF-IMAGE	"Изображение"			0
 SF-TOGGLE	"Исполение процесса"		TRUE
-SF-OPTION 	"Цветовой процесс" 		'("СОВ" "Ч/Б" "Ломо" "Сепия")
+SF-OPTION 	"Цветовой процесс" 		(fil-clr-handle TRUE 0)
 SF-TOGGLE	"Создание зерна"		TRUE
 SF-OPTION	"Процесс зерна"			'("Простая зернистость" "Зерно+")
 SF-TOGGLE	"Супер зерно (если возможно)"	FALSE
