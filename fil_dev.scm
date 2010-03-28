@@ -1,4 +1,4 @@
-;FIL v1.5 alpha1
+;FIL v1.5 alpha2
 ;ЛИПС (Лаборатория имитации пленочных снимков) = FIL;
 ;Список задач (ver. 1.5):
 ; - переработка спецификаций;
@@ -49,7 +49,7 @@
 ;=======================ЯДРО==========================
 ;fil-ng-core			stable		1.0
 ;fil-clr-handle			rc		---
-;fil-grain-handle		alpha		---
+;fil-grain-handle		rc		---
 ;fil-source-handle		stable		---
 ;===================ПРЕ-ПРОЦЕССЫ======================
 ;fil-pre-vignette		stable		1.0
@@ -205,12 +205,7 @@
 	    )
 
 	    ;Инициализация листа процессов зернистости
-	    (if (= grain_proc 0)
-	      (fil-int-simplegrain image)
-	    )
-	    (if (= grain_proc 1)
-	      (fil-int-adv_grain image c_imh c_imw c_fore boost_ex)
-	    )
+	    (eval (fil-grain-handle FALSE grain_proc))
 
 	    ;Захват готового слоя зерна и дальнейшее сведение слоев
 	    (set! grain_res
@@ -244,13 +239,14 @@
 ;МОДУЛЬ ЯДРА
 ;Входные переменные:
 ;КОМБИНАЦИЯ - TRUE если требуется возвратить лист процессов / номер процесса для возвращения блока кода;
+;ЦЕЛОЕ - номер выбранного процесса (занулить если нужно возвратить список);
 ;Возвращаемые значения:
 ;КОМБИНАЦИЯ - лист с текстовыми названиями процессов / блок кода для исполнения;
 (define (fil-clr-handle param clr_id)
 (define clr-handle)
 (define clr-list)
 
-;Список с именами цветовых процессов процессов
+;Список с именами цветовых процессов
 (set! clr-list
   (list
   
@@ -274,21 +270,61 @@
     ;Список с блоками запуска цветовых процессов
     (cond
 
-    ;Блок запуска процесса "СОВ"
-    ((= clr_id 0) (set! clr-handle (quote (fil-int-sov image clr_tar c_imh c_imw))))
+      ;Блок запуска процесса "СОВ"
+      ((= clr_id 0) (set! clr-handle (quote (fil-int-sov image clr_tar c_imh c_imw))))
 
-    ;Блок запуска процесса "Ч/Б"
-    ((= clr_id 1) (set! clr-handle (quote (fil-int-gray image clr_tar))))
+      ;Блок запуска процесса "Ч/Б"
+      ((= clr_id 1) (set! clr-handle (quote (fil-int-gray image clr_tar))))
 
-    ;Блок запуска процесса "Ломо"
-    ((= clr_id 2) (set! clr-handle (quote (fil-int-lomo image clr_tar))))
+      ;Блок запуска процесса "Ломо"
+      ((= clr_id 2) (set! clr-handle (quote (fil-int-lomo image clr_tar))))
 
-    ;Блок запуска процесса "Сепия"
-    ((= clr_id 3) (set! clr-handle (quote (fil-int-sepia image clr_tar c_imh c_imw c_fore))))
+      ;Блок запуска процесса "Сепия"
+      ((= clr_id 3) (set! clr-handle (quote (fil-int-sepia image clr_tar c_imh c_imw c_fore))))
     )
   )
 )
 clr-handle
+)
+
+;fil-grain-handle
+;МОДУЛЬ ЯДРА
+;Входные переменные:
+;КОМБИНАЦИЯ - TRUE если требуется возвратить лист процессов / номер процесса для возвращения блока кода;
+;ЦЕЛОЕ - номер выбранного процесса (занулить если нужно возвратить список);
+;Возвращаемые значения:
+;КОМБИНАЦИЯ - лист с текстовыми названиями процессов / блок кода для исполнения;
+(define (fil-grain-handle param grain_id)
+(define grain-handle)
+(define grain-list)
+
+;Список с именами процессов зернистости
+(set! grain-list
+  (list
+  
+  ;Процесс "Простая зернистость" с id=0
+  "Простая зернистость"
+
+  ;Процесс "Зерно+" с id=1
+  "Зерно+"
+  )
+)
+(if (= param TRUE)
+  (set! grain-handle grain-list)
+  (begin
+
+    ;Список с блоками запуска процессов зернистости
+    (cond
+
+      ;Блок запуска процесса "Простая зернистость"
+      ((= grain_id 0) (set! grain-handle (quote (fil-int-simplegrain image))))
+
+      ;Блок запуска процесса "Зерно+"
+      ((= grain_id 1) (set! grain-handle (quote (fil-int-adv_grain image c_imh c_imw c_fore boost_ex))))
+    )
+  )
+)
+grain-handle
 )
 
 (script-fu-register
@@ -303,7 +339,7 @@ SF-IMAGE	"Изображение"			0
 SF-TOGGLE	"Исполение процесса"		TRUE
 SF-OPTION 	"Цветовой процесс" 		(fil-clr-handle TRUE 0)
 SF-TOGGLE	"Создание зерна"		TRUE
-SF-OPTION	"Процесс зерна"			'("Простая зернистость" "Зерно+")
+SF-OPTION	"Процесс зерна"			(fil-grain-handle TRUE 0)
 SF-TOGGLE	"Супер зерно (если возможно)"	FALSE
 SF-TOGGLE	"Включить виньетирование"	FALSE
 SF-ADJUSTMENT	"Радиус виньетирования (%)"	'(100 85 125 5 10 1 0)
