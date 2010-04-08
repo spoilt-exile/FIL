@@ -1,9 +1,26 @@
-;FIL v1.5 alpha2
+;FIL v1.5 alpha3
+;
+;This program is free software; you can redistribute it and/or modify
+;it under the terms of the GNU General Public License as published by
+;the Free Software Foundation; either version 3 of the License, or
+;(at your option) any later version.
+; 
+;This program is distributed in the hope that it will be useful,
+;but WITHOUT ANY WARRANTY; without even the implied warranty of
+;MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;GNU General Public License for more details.
+; 
+;You should have received a copy of the GNU General Public License
+;along with this program; if not, write to the Free Software
+;Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;http://www.gnu.org/licenses/gpl-3.0.html
+;
 ;ЛИПС (Лаборатория имитации пленочных снимков) = FIL;
 ;Список задач (ver. 1.5):
 ; - переработка спецификаций;
 ; - добавление возвращаемых значений в процедуры;
-; - добавление процедур регистрации;
+; - добавление процедур регистрации;			(СДЕЛАНО)
+; - добавление процедуры создания рамки:
 ;История версий:
 ;===============================================================================================================
 ;ver. 0.3 (19 декабря 2009)
@@ -47,27 +64,27 @@
 ;===============================================================================================================
 ;Процедуры:			Статус		Версия
 ;=======================ЯДРО==========================
-;fil-ng-core			stable		1.0
+;fil-ng-core			alpha		1.5
 ;fil-clr-handle			rc		---
 ;fil-grain-handle		rc		---
-;fil-source-handle		stable		---
+;fil-source-handle		alpha		---
 ;===================ПРЕ-ПРОЦЕССЫ======================
-;fil-pre-vignette		stable		1.0
-;fil-pre-badblur		stable		1.0
+;fil-pre-vignette		alpha		1.5
+;fil-pre-badblur		alpha		1.5
 ;=================ЦВЕТОВЫЕ_ПРОЦЕССЫ===================
-;fil-int-sov			stable		1.0
-;fil-int-gray			stable		1.0
-;fil-int-lomo			stable		1.0
-;fil-int-sepia			stable		1.0
+;fil-int-sov			alpha		1.5
+;fil-int-gray			alpha		1.5
+;fil-int-lomo			alpha		1.5
+;fil-int-sepia			alpha		1.5
 ;===============ПРОЦЕССЫ_ЗЕРНИСТОСТИ==================
-;fil-int-simplegrain		stable		1.0
-;fil-int-grain_plus		stable		1.0
+;fil-int-simplegrain		alpha		1.5
+;fil-int-grain_plus		alpha		1.5
 ;=======================================Классы модуей ЛИПС======================================================
 ; -pre - пре-процесс.
 ; -int - внутрення процедура (в файле основного скрипта).
 ; -ext - внешняя процедура (вне основного скрипта).
 ; -dep - внешняя процедура требующая внешних плагинов.
-;================================Набор требований к модулям ЛИПС 1.0============================================
+;================================Набор требований к модулям ЛИПС 1.5:===========================================
 ; * теперь процессы могут брать параметры изображения непосредственно из ядра (c_imh, c_imw и c_fore).
 ; * теперь усиление зернистости должен поддерживать сам процесс.
 ; * цветовой процесc должен совмещать результатв один итоговой слой.
@@ -329,30 +346,30 @@ grain-handle
 
 (script-fu-register
 "fil-ng-core"
-"_ЛИПС v1.0"
+"_ЛИПС v1.5 alpha"
 "Лаборатория имитации пленочных снимков"
 "Непочатов Станислав"
-"GPLv2"
+"GPLv3"
 "Январь 2010"
 "*"
 SF-IMAGE	"Изображение"			0
-SF-TOGGLE	"Исполение процесса"		TRUE
+SF-TOGGLE	"Исполнение процесса"		TRUE
 SF-OPTION 	"Цветовой процесс" 		(fil-clr-handle TRUE 0)
 SF-TOGGLE	"Создание зерна"		TRUE
 SF-OPTION	"Процесс зерна"			(fil-grain-handle TRUE 0)
 SF-TOGGLE	"Супер зерно (если возможно)"	FALSE
 SF-TOGGLE	"Включить виньетирование"	FALSE
 SF-ADJUSTMENT	"Радиус виньетирования (%)"	'(100 85 125 5 10 1 0)
-SF-ADJUSTMENT	"Мягкость виньтирования (%)"	'(33 20 45 2 5 1 0)
+SF-ADJUSTMENT	"Мягкость виньетирования (%)"	'(33 20 45 2 5 1 0)
 SF-ADJUSTMENT	"Плотность виньетирования"	'(100 0 100 10 25 1 0)
-SF-TOGGLE	"Плохой обьектив (медленно)"	FALSE
+SF-TOGGLE	"Плохой объектив (медленно)"	FALSE
 SF-OPTION	"Cтепень размытия"		'("x1" "x2" "x3")
 SF-TOGGLE	"Работать с видимым"		FALSE
 )
 
 (script-fu-menu-register
 "fil-ng-core"
-_"<Image>/Filters/RED STORM FX"
+_"<Image>/Filters/RSS Devel"
 )
 
 ;fil-source-handle
