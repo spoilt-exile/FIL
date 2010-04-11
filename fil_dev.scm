@@ -1,15 +1,15 @@
-;FIL v1.5 alpha3
+;FIL v1.5 alpha4
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
 ;the Free Software Foundation; either version 3 of the License, or
 ;(at your option) any later version.
-; 
+;
 ;This program is distributed in the hope that it will be useful,
 ;but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;GNU General Public License for more details.
-; 
+;
 ;You should have received a copy of the GNU General Public License
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -85,170 +85,189 @@
 ; -ext - внешняя процедура (вне основного скрипта).
 ; -dep - внешняя процедура требующая внешних плагинов.
 ;================================Набор требований к модулям ЛИПС 1.5:===========================================
-; * теперь процессы могут брать параметры изображения непосредственно из ядра (c_imh, c_imw и c_fore).
-; * теперь усиление зернистости должен поддерживать сам процесс.
-; * цветовой процесc должен совмещать результатв один итоговой слой.
-; * по окончании цветового процесса итоговый слой должен быть активным.
-; * процесс зернистости также должен совмещать слои в один итоговый.
-; * итоговым слоям должны быть присвоены имена процессов.
+; * процессы могут брать параметры изображения непосредственно из ядра (переменные с префиксом fc).
+; * процессы должны быть зарегестрированы в процедурах fil-clr-handle и fil-grain-handle для работоспособности.
+; * процессы должны по окончанию работы возвращать итоговый слой ядру.
+; * усиление зернистости должен поддерживать сам процесс зернистости.
 ;===============================================================================================================
 
 ;Ядро
-(define (fil-ng-core	;имя процедуры;
-	image		;перменная изображения;
-	clr_ex		;переключатель исполнения цветового процесса;
-	color_proc	;номер цветового процесса;
-	grain_ex	;переключатель исполнения процесса зернистости;
-	grain_proc	;номер процесса зернистости;
-	boost_ex	;переключатель усиления зернистости;
-	vign_ex		;переключатель активации виньетирования;
-	vign_rad	;радиус виньетирования в процентах;
-	vign_soft	;мягкость виньетирования;
-	vign_opc	;плотность виньетирования;
-	blur_ex		;переключатель исполнения размытия
-	blur_xt		;регулятор размытия
-	viz		;переключатель использования видимого;
+(define (fil-ng-core		;имя процедуры;
+
+	;Главные атрибуты запуска
+	fm_image		;перменная изображения;
+
+	;Управление цветовыми процессами
+	fm_clr_flag		;переключатель исполнения цветового процесса;
+	fm_clr_id		;номер цветового процесса;
+
+	;Управление процессами зернистости
+	fm_grain_flag		;переключатель исполнения процесса зернистости;
+	fm_grain_id		;номер процесса зернистости;
+	fm_grain_boost		;переключатель усиления зернистости;
+
+	;Управление препроцессами
+	fm_pre_vign_flag	;переключатель активации виньетирования;
+	fm_pre_vign_rad		;радиус виньетирования в процентах;
+	fm_pre_vign_soft	;мягкость виньетирования;
+	fm_pre_vign_opc		;плотность виньетирования;
+	fm_pre_blur_flag	;переключатель исполнения размытия
+	fm_pre_blur_step	;регулятор размытия
+
+	;Дополнительные параметры
+	fm_misc_visible		;переключатель использования видимого;
 	)
 
-  ;Старт скрипта
+  ;Старт ядра
   (gimp-context-push)
-  (gimp-image-undo-disable image)
+  (gimp-image-undo-disable fm_image)
 
   ;Декларация переменных;
   (let* (
-	(c_imh (car (gimp-image-height image)))			;системная переменная высоты изображения
-	(c_imw (car (gimp-image-width image)))			;системная переменная ширины изображения
-	(c_fore (car (gimp-context-get-foreground)))		;системная переменная цвета переднего плана
-	(pref_core "-p ")					;префикс для обозначения обработки ядром
-	(pref_clr "-c ")					;префикс для обозначения обработки цветовым процессом
-	(pref_grain "-g ")					;префикс для обозначения обработки процессом зернистости
-	(core_ex FALSE)						;свитч исполнения обьектов ядра
-	(core_tar)						;слой для обработки обьектами ядра
-	(core_res)						;результирующий слой после стадии обработки обьектами ядра
-	(clr_tar)						;слой для обработки цветовым процессом
-	(clr_res)						;результирующий слой по выходу из цветового процесса
-	(grain_tar)						;слой обработки зерновым процессом
-	(grain_res)						;результирующий слой по выходу из процесса зернистости
-	(clr_str)						;имя результирующего цветового слоя
-	(grain_str)						;имя результирующего слоя зернистости
-	(res_str "")						;имя итогового слоя
-	(grain_boost)						;слой усиливающий зернистость
-	(v_str "(V) ")						;приставка для отображения итогового слоя с виньетированием
-	(blur_str (string-append "Blur x" (number->string (+ blur_xt 1))))
+
+	;Переменные для передачи процессам
+	(fc_imh (car (gimp-image-height fm_image)))					;системная переменная высоты изображения
+	(fc_imw (car (gimp-image-width fm_image)))					;системная переменная ширины изображения
+	(fc_fore (car (gimp-context-get-foreground)))					;системная переменная цвета переднего плана
+
+	;Управления стадиями
+	(fl_pre_flag FALSE)								;свитч исполнения препроцессов
+
+	;Слои обрабатываемые процессами
+	(fp_pre_tar)									;слой для обработки препроцессами
+	(fp_clr_tar)									;слой для обработки цветовым процессом
+	(fp_grain_tar)									;слой обработки зерновым процессом
+
+	;Результирующие слои процессов
+	(fp_pre_res)									;результирующий слой после стадии обработки обьектами ядра
+	(fp_clr_res)									;результирующий слой по выходу из цветового процесса
+	(fp_grain_res)									;результирующий слой по выходу из процесса зернистости
+
+	;Префиксы индикации опций
+	(fs_pref_pre "-p ")								;префикс для обозначения обработки ядром
+	(fs_pref_clr "-c ")								;префикс для обозначения обработки цветовым процессом
+	(fs_pref_grain "-g ")								;префикс для обозначения обработки процессом зернистости
+
+	;Вспомогательные строковые переменные
+	(fs_clr_str)									;имя результирующего цветового слоя
+	(fs_grain_str)									;имя результирующего слоя зернистости
+	(fs_res_str "")									;имя итогового слоя
+	(fs_vign_str "(V) ")								;приставка для отображения итогового слоя с виньетированием
+	(fs_blur_str (string-append "Blur x" (number->string (+ fm_pre_blur_step 1))))	;приставка для отображения итогового слоя с размытием
 	)
 
 	;Секция активации исполнения обьектов ядра
 	(cond
-	  ((= blur_ex TRUE) (set! core_ex TRUE))
-	  ((and (= vign_ex TRUE) (> vign_opc 0)) (set! core_ex TRUE))
+	  ((= fm_pre_blur_flag TRUE) (set! fl_pre_flag TRUE))
+	  ((and (= fm_pre_vign_flag TRUE) (> fm_pre_vign_opc 0)) (set! fl_pre_flag TRUE))
 	)
 
 	;Инициализация секции обьектов ядра
-	(if (= core_ex TRUE)
+	(if (= fl_pre_flag TRUE)
 	  (begin
 
 	    ;Копирование слоя
-	    (set! core_tar (fil-source-handle image viz))
-	    (set! res_str (string-append res_str pref_core))
-	    (gimp-image-set-active-layer image core_tar)
+	    (set! fp_pre_tar (fil-source-handle fm_image fm_misc_visible))
+	    (set! fs_res_str (string-append fs_res_str fs_pref_pre))
+	    (gimp-image-set-active-layer fm_image fp_pre_tar)
 
 	    ;Запуск виньетирования
-	    (if (= vign_ex TRUE)
-	      (if (> vign_opc 0)
+	    (if (= fm_pre_vign_flag TRUE)
+	      (if (> fm_pre_vign_opc 0)
 		(begin
-		  (fil-pre-vignette image c_imh c_imw vign_opc vign_rad vign_soft c_fore)
-		  (set! res_str (string-append res_str v_str))
-		  (set! core_tar (car (gimp-image-get-active-layer image)))
+		  (fil-pre-vignette fm_image fc_imh fc_imw fm_pre_vign_opc fm_pre_vign_rad fm_pre_vign_soft fc_fore)
+		  (set! fs_res_str (string-append fs_res_str fs_vign_str))
+		  (set! fp_pre_tar (car (gimp-image-get-active-layer fm_image)))
 		)
 	      )
 	    )
 	    
 	    ;Запуск размытия
-	    (if (= blur_ex TRUE)
+	    (if (= fm_pre_blur_flag TRUE)
 	      (begin
-		(fil-pre-badblur image core_tar c_imh c_imw blur_xt)
-		(set! res_str (string-append res_str blur_str " "))
+		(fil-pre-badblur fm_image fp_pre_tar fc_imh fc_imw fm_pre_blur_step)
+		(set! fs_res_str (string-append fs_res_str fs_blur_str " "))
 	      )
 	    )
-	    (set! core_res (car (gimp-image-get-active-layer image)))
-	    (gimp-drawable-set-name core_res res_str)
+	    (set! fp_pre_res (car (gimp-image-get-active-layer fm_image)))
+	    (gimp-drawable-set-name fp_pre_res fs_res_str)
 	  )
 	)
 
 	;Запуск цветового процесса
-	(if (= clr_ex TRUE)
+	(if (= fm_clr_flag TRUE)
 	  (begin
 
 	    ;Переназначение слоя или его копирование
-	    (if (= core_ex TRUE)
-	      (set! clr_tar (car (gimp-image-get-active-layer image)))
+	    (if (= fl_pre_flag TRUE)
+	      (set! fp_clr_tar (car (gimp-image-get-active-layer fm_image)))
 	      (begin
-		(set! clr_tar (fil-source-handle image viz))
-		(gimp-image-set-active-layer image clr_tar)
+		(set! fp_clr_tar (fil-source-handle fm_image fm_misc_visible))
+		(gimp-image-set-active-layer fm_image fp_clr_tar)
 	      )
 	    )
 
 	    ;Инициализация листа процессов
-	    (eval (fil-clr-handle FALSE color_proc))
+	    (eval (fil-clr-handle FALSE fm_clr_id))
 
 	    ;Захват готового слоя и его имени
-	    (set! clr_res
-	      (car (gimp-image-get-active-layer image))
+	    (set! fp_clr_res
+	      (car (gimp-image-get-active-layer fm_image))
 	    )
-	    (set! clr_str
+	    (set! fs_clr_str
 	      (car 
-		(gimp-drawable-get-name clr_res)
+		(gimp-drawable-get-name fp_clr_res)
 	      )
 	    )
-	    (set! res_str (string-append res_str pref_clr clr_str " "))
-	    (gimp-drawable-set-name clr_res res_str)
+	    (set! fs_res_str (string-append fs_res_str fs_pref_clr fs_clr_str " "))
+	    (gimp-drawable-set-name fp_clr_res fs_res_str)
 	  )
 	)
 
 	;Запуск процесса генерации зерна
-	(if (= grain_ex TRUE)
+	(if (= fm_grain_flag TRUE)
 	  (begin
 
-	    (if (= core_ex TRUE)
-	      (set! clr_ex TRUE)
+	    (if (= fl_pre_flag TRUE)
+	      (set! fm_clr_flag TRUE)
 	    )
 
 	    ;Копирование слоя-источника в случае независимого запуска
-	    (if (= clr_ex FALSE)
+	    (if (= fm_clr_flag FALSE)
 	      (begin
-		(set! grain_tar (fil-source-handle image viz))
-		(gimp-image-set-active-layer image grain_tar)
+		(set! fp_grain_tar (fil-source-handle fm_image fm_misc_visible))
+		(gimp-image-set-active-layer fm_image fp_grain_tar)
 	      )
 	    )
 
 	    ;Инициализация листа процессов зернистости
-	    (eval (fil-grain-handle FALSE grain_proc))
+	    (eval (fil-grain-handle FALSE fm_grain_id))
 
 	    ;Захват готового слоя зерна и дальнейшее сведение слоев
-	    (set! grain_res
+	    (set! fp_grain_res
 	      (car 
-		(gimp-image-get-active-layer image)
+		(gimp-image-get-active-layer fm_image)
 	      )
 	    )
-	    (set! grain_str
+	    (set! fs_grain_str
 	      (car 
-		(gimp-drawable-get-name grain_res)
+		(gimp-drawable-get-name fp_grain_res)
 	      )
 	    )
 
 	    ;Завершение сборки имени итогового слоя
-	    (set! res_str (string-append res_str pref_grain grain_str))
-	    (gimp-drawable-set-name grain_res res_str)
+	    (set! fs_res_str (string-append fs_res_str fs_pref_grain fs_grain_str))
+	    (gimp-drawable-set-name fp_grain_res fs_res_str)
 	  )
 	)
 
 	;Возвращение исходного цвета переднего плана
-	(gimp-context-set-foreground c_fore)
+	(gimp-context-set-foreground fc_fore)
 	(gimp-displays-flush)
   )
 
   ;Завершение скрипта
-  (gimp-image-undo-enable image)
+  (gimp-image-undo-enable fm_image)
   (gimp-context-pop)
 )
 
@@ -288,16 +307,16 @@
     (cond
 
       ;Блок запуска процесса "СОВ"
-      ((= clr_id 0) (set! clr-handle (quote (fil-int-sov image clr_tar c_imh c_imw))))
+      ((= clr_id 0) (set! clr-handle (quote (fil-int-sov fm_image fp_clr_tar fc_imh fc_imw))))
 
       ;Блок запуска процесса "Ч/Б"
-      ((= clr_id 1) (set! clr-handle (quote (fil-int-gray image clr_tar))))
+      ((= clr_id 1) (set! clr-handle (quote (fil-int-gray fm_image fp_clr_tar))))
 
       ;Блок запуска процесса "Ломо"
-      ((= clr_id 2) (set! clr-handle (quote (fil-int-lomo image clr_tar))))
+      ((= clr_id 2) (set! clr-handle (quote (fil-int-lomo fm_image fp_clr_tar))))
 
       ;Блок запуска процесса "Сепия"
-      ((= clr_id 3) (set! clr-handle (quote (fil-int-sepia image clr_tar c_imh c_imw c_fore))))
+      ((= clr_id 3) (set! clr-handle (quote (fil-int-sepia fm_image fp_clr_tar fc_imh fc_imw fc_fore))))
     )
   )
 )
@@ -334,10 +353,10 @@ clr-handle
     (cond
 
       ;Блок запуска процесса "Простая зернистость"
-      ((= grain_id 0) (set! grain-handle (quote (fil-int-simplegrain image))))
+      ((= grain_id 0) (set! grain-handle (quote (fil-int-simplegrain fm_image))))
 
       ;Блок запуска процесса "Зерно+"
-      ((= grain_id 1) (set! grain-handle (quote (fil-int-adv_grain image c_imh c_imw c_fore boost_ex))))
+      ((= grain_id 1) (set! grain-handle (quote (fil-int-adv_grain fm_image fc_imh fc_imw fc_fore fm_grain_boost))))
     )
   )
 )
@@ -376,7 +395,7 @@ _"<Image>/Filters/RSS Devel"
 ;МОДУЛЬ ЯДРА
 ;Входные переменные:
 ;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
-;ЛОГИЧ. - значение viz;
+;ЛОГИЧ. - значение fm_misc_visible;
 ;Вовращаемые значения:
 ;СЛОЙ - готовый слой;
 (define (fil-source-handle image viz)
