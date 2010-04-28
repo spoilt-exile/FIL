@@ -1,4 +1,4 @@
-;FIL v1.5 beta1
+;FIL v1.5 beta2
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -20,7 +20,9 @@
 ; - переработка спецификаций;				(СДЕЛАНО)
 ; - добавление возвращаемых значений в процедуры;	(СДЕЛАНО)
 ; - добавление процедур регистрации;			(СДЕЛАНО)
-; - добавление процедуры создания рамки:
+; - добавление препроцесса корректировки экспозиции	(СДЕЛАНО)
+; - портирование split studio
+; - модификация simplegrain
 ;История версий:
 ;===============================================================================================================
 ;ver. 0.3 (19 декабря 2009)
@@ -64,11 +66,12 @@
 ;===============================================================================================================
 ;Процедуры:			Статус		Ревизия		Спецификации
 ;==========================================ПРОЦЕДУРЫ ЯДРА=======================================================
-;fil-ng-core			beta		---		1.5
+;fil-ng-core			stable		---		1.5
 ;fil-clr-handle			stable		---		---
 ;fil-grain-handle		stable		---		---
 ;fil-source-handle		stable		---		---
 ;============================================ПРЕПРОЦЕССЫ========================================================
+;fil-pre-xps			stable		r0		1.5
 ;fil-pre-vignette		stable		r3		1.5
 ;fil-pre-badblur		stable		r1		1.5
 ;=========================================ЦВЕТОВЫЕ ПРОЦЕССЫ=====================================================
@@ -113,6 +116,7 @@
 	fm_pre_vign_opc		;плотность виньетирования;
 	fm_pre_blur_flag	;переключатель исполнения размытия
 	fm_pre_blur_step	;регулятор размытия
+	fm_pre_xps_control	;регулятор корректировки экспозиции
 
 	;Дополнительные параметры
 	fm_misc_visible		;переключатель использования видимого;
@@ -153,23 +157,37 @@
 	(fs_clr_str)									;имя результирующего цветового слоя
 	(fs_grain_str)									;имя результирующего слоя зернистости
 	(fs_res_str "")									;имя итогового слоя
-	(fs_vign_str "(V) ")								;приставка для отображения итогового слоя с виньетированием
+	(fs_xps_str "Эксп. ")								;метка индикации корректировки экспозиции
+	(fs_vign_str "(В) ")								;приставка для отображения итогового слоя с виньетированием
 	(fs_blur_str (string-append "Разм. x" (number->string (+ fm_pre_blur_step 1))))	;приставка для отображения итогового слоя с размытием
 	)
 
-	;Секция активации исполнения обьектов ядра
+	;Секция активации исполнения пре-процессов
 	(cond
 	  ((= fm_pre_blur_flag TRUE) (set! fl_pre_flag TRUE))
 	  ((and (= fm_pre_vign_flag TRUE) (> fm_pre_vign_opc 0)) (set! fl_pre_flag TRUE))
+	  ((not (= fm_pre_xps_control 0)) (set! fl_pre_flag TRUE))
 	)
 
-	;Инициализация секции обьектов ядра
+	;Инициализация секции пре-процессов
 	(if (= fl_pre_flag TRUE)
 	  (begin
 
 	    ;Копирование слоя
 	    (set! fp_pre_layer (fil-source-handle fm_image fm_misc_visible))
 	    (set! fs_res_str (string-append fs_res_str fs_pref_pre))
+
+	    ;Запуск корректировки экспозиции
+	    (if (not (= fm_pre_xps_control 0))
+	      (begin
+		(fil-pre-xps fm_image fp_pre_layer fm_pre_xps_control)
+		(set! fs_xps_str (string-append fs_xps_str (if (> fm_pre_xps_control 0) "+" "-") (number->string fm_pre_xps_control)))
+		(if (> (string-length fs_xps_str) 10)
+		  (set! fs_xps_str (substring fs_xps_str 0 11))
+		)
+		(set! fs_res_str (string-append fs_res_str fs_xps_str " "))
+	      )
+	    )
 
 	    ;Запуск виньетирования
 	    (if (= fm_pre_vign_flag TRUE)
@@ -188,6 +206,7 @@
 		(set! fs_res_str (string-append fs_res_str fs_blur_str " "))
 	      )
 	    )
+
 	    (if (and (= fm_clr_flag FALSE) (= fm_grain_flag FALSE))
 	      (gimp-drawable-set-name fp_pre_layer fs_res_str)
 	    )
@@ -381,12 +400,12 @@ grain-handle
 "Непочатов Станислав"
 "GPLv3"
 "Январь 2010"
-"*"
+"RGB,RGBA*"
 SF-IMAGE	"Изображение"			0
-SF-TOGGLE	"Исполнение процесса"		TRUE
+SF-TOGGLE	"Стадия цветокорректировки"	TRUE
 SF-OPTION 	"Цветовой процесс" 		(fil-clr-handle TRUE 0)
-SF-TOGGLE	"Создание зерна"		TRUE
-SF-OPTION	"Процесс зерна"			(fil-grain-handle TRUE 0)
+SF-TOGGLE	"Стадия зернистости"		TRUE
+SF-OPTION	"Процесс зернистости"		(fil-grain-handle TRUE 0)
 SF-TOGGLE	"Супер зерно (если возможно)"	FALSE
 SF-TOGGLE	"Включить виньетирование"	FALSE
 SF-ADJUSTMENT	"Радиус виньетирования (%)"	'(100 85 125 5 10 1 0)
@@ -394,6 +413,7 @@ SF-ADJUSTMENT	"Мягкость виньетирования (%)"	'(33 20 45 2 5
 SF-ADJUSTMENT	"Плотность виньетирования"	'(100 0 100 10 25 1 0)
 SF-TOGGLE	"Плохой объектив (медленно)"	FALSE
 SF-OPTION	"Cтепень размытия"		'("x1" "x2" "x3")
+SF-ADJUSTMENT	"Коррекция экспозиции"		'(0 -2 2 0.1 0.3 1 0)
 SF-TOGGLE	"Работать с видимым"		FALSE
 )
 
@@ -436,6 +456,26 @@ _"<Image>/Filters/RSS Devel"
 	(set! exit exit-layer)
   )
 exit
+)
+
+;fil-pre-xps
+;ПРЕ-ПРОЦЕСС
+;Входные переменные:
+;СЛОЙ - обрабатываемый слой;
+;ЦЕЛОЕ - величина корректировки экспозиции;
+(define (fil-pre-xps image layer control)
+  (let* (
+	(low_input (- 0 (* control 25)))
+	(high_input (- 255 (* control 25)))
+	)
+	(if (> high_input 255)
+	  (set! high_input 255)
+	)
+	(if (< low_input 0)
+	  (set! low_input 0)
+	)
+	(gimp-levels layer 0 low_input high_input 1.0 0 255)
+  )
 )
 
 ;fil-pre-vignette
@@ -652,8 +692,8 @@ sepia-exit
 ;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
 ;СЛОЙ - обрабатываемый слой;
 (define (fil-int-simplegrain image clr_res)
-(plug-in-hsv-noise 1 image clr_res 2 3 0 25)
-(gimp-drawable-set-name clr_res "Simple Grain")
+  (plug-in-hsv-noise 1 image clr_res 2 3 0 25)
+  (gimp-drawable-set-name clr_res "Simple Grain")
 )
 
 ;fil-int-adv_grain
