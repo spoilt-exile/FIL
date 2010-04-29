@@ -1,4 +1,4 @@
-;FIL v1.5 beta2
+;FIL v1.5 RC1
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -21,8 +21,7 @@
 ; - добавление возвращаемых значений в процедуры;	(СДЕЛАНО)
 ; - добавление процедур регистрации;			(СДЕЛАНО)
 ; - добавление препроцесса корректировки экспозиции	(СДЕЛАНО)
-; - портирование split studio
-; - модификация simplegrain
+; - портирование split studio				(СДЕЛАНО)
 ;История версий:
 ;===============================================================================================================
 ;ver. 0.3 (19 декабря 2009)
@@ -66,22 +65,23 @@
 ;===============================================================================================================
 ;Процедуры:			Статус		Ревизия		Спецификации
 ;==========================================ПРОЦЕДУРЫ ЯДРА=======================================================
-;fil-ng-core			stable		---		1.5
-;fil-clr-handle			stable		---		---
-;fil-grain-handle		stable		---		---
-;fil-source-handle		stable		---		---
+;fil-ng-core			стаб		---		1.5
+;fil-clr-handle			стаб		---		---
+;fil-grain-handle		стаб		---		---
+;fil-source-handle		стаб		---		---
 ;============================================ПРЕПРОЦЕССЫ========================================================
-;fil-pre-xps			stable		r0		1.5
-;fil-pre-vignette		stable		r3		1.5
-;fil-pre-badblur		stable		r1		1.5
+;fil-pre-xps			стаб		r0		1.5
+;fil-pre-vignette		стаб		r3		1.5
+;fil-pre-badblur		стаб		r1		1.5
 ;=========================================ЦВЕТОВЫЕ ПРОЦЕССЫ=====================================================
-;fil-int-sov			stable		r4		1.5
-;fil-int-gray			stable		r2		1.5
-;fil-int-lomo			stable		r1		1.5
-;fil-int-sepia			stable		r3		1.5
+;fil-int-sov			стаб		r4		1.5
+;fil-int-gray			стаб		r2		1.5
+;fil-int-lomo			стаб		r1		1.5
+;fil-int-sepia			стаб		r3		1.5
+;fil-int-duo			стаб		r0		1.5
 ;=======================================ПРОЦЕССЫ ЗЕРНИСТОСТИ====================================================
-;fil-int-simplegrain		stable		r2		1.5
-;fil-int-grain_plus		stable		r3		1.5
+;fil-int-simplegrain		стаб		r2		1.5
+;fil-int-grain_plus		стаб		r3		1.5
 ;=======================================Классы модуей ЛИПС======================================================
 ; -pre - пре-процесс.
 ; -int - внутрення процедура (в файле основного скрипта).
@@ -130,36 +130,36 @@
   (let* (
 
 	;Переменные для передачи процессам
-	(fc_imh (car (gimp-image-height fm_image)))					;системная переменная высоты изображения
-	(fc_imw (car (gimp-image-width fm_image)))					;системная переменная ширины изображения
-	(fc_fore (car (gimp-context-get-foreground)))					;системная переменная цвета переднего плана
+	(fc_imh (car (gimp-image-height fm_image)))		;системная переменная высоты изображения
+	(fc_imw (car (gimp-image-width fm_image)))		;системная переменная ширины изображения
+	(fc_fore (car (gimp-context-get-foreground)))		;системная переменная цвета переднего плана
 
 	;Управления стадиями
-	(fl_pre_flag FALSE)								;флаг исполнения препроцессов
+	(fl_pre_flag FALSE)					;флаг исполнения препроцессов
 
 	;Результирующие переменные полученные от процессов регистрации
-	(fx_clr_list)									;Лист с переменными после исполнения fil-clr-handle
-	(fx_clr_exp)									;Выражение для исполнения стадии цветвого процессами
-	(fx_grain_list)									;Лист с переменными после исполнения fil-grain-handle
-	(fx_grain_exp)									;Выражение для исполнения стадии процесса зернистости
+	(fx_clr_list)						;Лист с переменными после исполнения fil-clr-handle
+	(fx_clr_exp)						;Выражение для исполнения стадии цветвого процессами
+	(fx_grain_list)						;Лист с переменными после исполнения fil-grain-handle
+	(fx_grain_exp)						;Выражение для исполнения стадии процесса зернистости
 
 	;Слои взаимодействия с процессами
-	(fp_pre_layer)									;единый слой для пре-стадии
-	(fp_clr_layer)									;единый слой для цветовых процессов
-	(fp_grain_layer)								;единый слой для процессов зернистости
+	(fp_pre_layer)						;единый слой для пре-стадии
+	(fp_clr_layer)						;единый слой для цветовых процессов
+	(fp_grain_layer)					;единый слой для процессов зернистости
 
 	;Префиксы индикации опций
-	(fs_pref_pre "-p ")								;префикс для обозначения обработки ядром
-	(fs_pref_clr "-c ")								;префикс для обозначения обработки цветовым процессом
-	(fs_pref_grain "-g ")								;префикс для обозначения обработки процессом зернистости
+	(fs_pref_pre "-p ")					;префикс для обозначения обработки препроцессами
+	(fs_pref_clr "-c ")					;префикс для обозначения обработки цветовым процессом
+	(fs_pref_grain "-g ")					;префикс для обозначения обработки процессом зернистости
 
 	;Вспомогательные строковые переменные
-	(fs_clr_str)									;имя результирующего цветового слоя
-	(fs_grain_str)									;имя результирующего слоя зернистости
-	(fs_res_str "")									;имя итогового слоя
-	(fs_xps_str "Эксп. ")								;метка индикации корректировки экспозиции
-	(fs_vign_str "(В) ")								;приставка для отображения итогового слоя с виньетированием
-	(fs_blur_str (string-append "Разм. x" (number->string (+ fm_pre_blur_step 1))))	;приставка для отображения итогового слоя с размытием
+	(fs_clr_str)						;имя результирующего цветового слоя
+	(fs_grain_str)						;имя результирующего слоя зернистости
+	(fs_res_str "")						;имя итогового слоя
+	(fs_xps_str "Эксп. ")					;метка индикации корректировки экспозиции
+	(fs_vign_str "(В) ")					;приставка для отображения итогового слоя с виньетированием
+	(fs_blur_str "Разм. x")					;приставка для отображения итогового слоя с размытием
 	)
 
 	;Секция активации исполнения пре-процессов
@@ -203,7 +203,7 @@
 	    (if (= fm_pre_blur_flag TRUE)
 	      (begin
 		(fil-pre-badblur fm_image fp_pre_layer fc_imh fc_imw fm_pre_blur_step)
-		(set! fs_res_str (string-append fs_res_str fs_blur_str " "))
+		(set! fs_res_str (string-append fs_res_str fs_blur_str (number->string (+ fm_pre_blur_step 1)) " "))
 	      )
 	    )
 
@@ -293,6 +293,9 @@
 
 		   ;Процесс "Сепия" id=3
 		   "Сепия"
+
+		   ;Процесс "Двутон" id=4
+		   "Двутон"
 		   )
 	)
 	(temp-list)
@@ -319,6 +322,9 @@
 
 	      ;Блок запуска процесса "Сепия"
 	      ((= clr_id 3) (set! clr-exp (quote (set! fp_clr_layer (fil-int-sepia fm_image fp_clr_layer fc_imh fc_imw fc_fore)))))
+
+	      ;Блок запуска процесса "Двутон"
+	      ((= clr_id 4) (set! clr-exp (quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer)))))
 	    )
 	    (set! temp-list clr-list)
 	    (while (< temp-id clr_id)
@@ -395,26 +401,26 @@ grain-handle
 
 (script-fu-register
 "fil-ng-core"
-"_ЛИПС v1.5 beta"
+"_ЛИПС v1.5 RC1"
 "Лаборатория имитации пленочных снимков"
 "Непочатов Станислав"
 "GPLv3"
 "Январь 2010"
 "RGB,RGBA*"
-SF-IMAGE	"Изображение"			0
-SF-TOGGLE	"Стадия цветокорректировки"	TRUE
-SF-OPTION 	"Цветовой процесс" 		(fil-clr-handle TRUE 0)
-SF-TOGGLE	"Стадия зернистости"		TRUE
-SF-OPTION	"Процесс зернистости"		(fil-grain-handle TRUE 0)
-SF-TOGGLE	"Супер зерно (если возможно)"	FALSE
-SF-TOGGLE	"Включить виньетирование"	FALSE
-SF-ADJUSTMENT	"Радиус виньетирования (%)"	'(100 85 125 5 10 1 0)
-SF-ADJUSTMENT	"Мягкость виньетирования (%)"	'(33 20 45 2 5 1 0)
-SF-ADJUSTMENT	"Плотность виньетирования"	'(100 0 100 10 25 1 0)
-SF-TOGGLE	"Плохой объектив (медленно)"	FALSE
-SF-OPTION	"Cтепень размытия"		'("x1" "x2" "x3")
-SF-ADJUSTMENT	"Коррекция экспозиции"		'(0 -2 2 0.1 0.3 1 0)
-SF-TOGGLE	"Работать с видимым"		FALSE
+SF-IMAGE	"Изображение"			0				;fm_image
+SF-TOGGLE	">>Стадия цветокорректировки"	TRUE				;fm_clr_flag
+SF-OPTION 	"Цветовой процесс" 		(fil-clr-handle TRUE 0)		;fm_clr_id
+SF-TOGGLE	">>Стадия зернистости"		TRUE				;fm_grain_flag
+SF-OPTION	"Процесс зернистости"		(fil-grain-handle TRUE 0)	;fm_grain_id
+SF-TOGGLE	">>Супер зерно (если возможно)"	FALSE				;fm_grain_boost
+SF-TOGGLE	">>Включить виньетирование"	FALSE				;fm_pre_vign_flag
+SF-ADJUSTMENT	"Радиус виньетирования (%)"	'(100 85 125 5 10 1 0)		;fm_pre_vign_rad
+SF-ADJUSTMENT	"Мягкость виньетирования (%)"	'(33 20 45 2 5 1 0)		;fm_pre_vign_soft
+SF-ADJUSTMENT	"Плотность виньетирования"	'(100 0 100 10 25 1 0)		;fm_pre_vign_opc
+SF-TOGGLE	">>Плохой объектив (медленно)"	FALSE				;fm_pre_blur_flag
+SF-OPTION	"Cтепень размытия"		'("x1" "x2" "x3")		;fm_pre_blur_step
+SF-ADJUSTMENT	">>Коррекция экспозиции"	'(0 -2 2 0.1 0.3 1 0)		;fm_pre_xps_control
+SF-TOGGLE	">>Работать с видимым"		FALSE				;fm_misc_visible
 )
 
 (script-fu-menu-register
@@ -684,6 +690,51 @@ sov-exit
 	(set! sepia-exit layer)
   )
 sepia-exit
+)
+
+;fil-int-duo
+;ЦВЕТОВОЙ ПРОЦЕСС
+;Входные переменные:
+;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
+;СЛОЙ - обрабатываемый слой;
+;Возвращаемые переменные:
+;СЛОЙ - ббработанный слой;
+(define (fil-int-duo image layer)
+(define duo-exit)
+  (let* (
+	(affect (car (gimp-layer-copy layer FALSE)))
+	(light (car (gimp-layer-copy layer FALSE)))
+	(dark (car (gimp-layer-copy layer FALSE)))
+	(lightmask)
+	)
+	(gimp-image-add-layer image dark -1)
+	(gimp-image-add-layer image affect -1)
+	(gimp-image-add-layer image light -1)
+	(gimp-drawable-set-name dark "Темный тон")
+	(gimp-drawable-set-name light "Светлый тон")
+	(gimp-drawable-set-name affect "Аффект")
+	(gimp-desaturate affect)
+	(gimp-levels affect 0 60 195 1.0 0 255)
+	(set! lightmask
+	  (car
+	    (gimp-layer-create-mask affect 5)
+	  )
+	)
+	(gimp-layer-add-mask light lightmask)
+	(plug-in-colorify 1 image light '(200 175 140))
+	(plug-in-colorify 1 image dark '(80 102 109))
+	(gimp-layer-set-mode light 13)
+	(gimp-layer-set-mode dark 13)
+	(gimp-layer-set-mode affect 5)
+	(gimp-hue-saturation light 0 0 0 100)
+	(gimp-layer-set-opacity affect 75)
+	(set! layer (car (gimp-image-merge-down image dark 0)))
+	(set! layer (car (gimp-image-merge-down image affect 0)))
+	(set! layer (car (gimp-image-merge-down image light 0)))
+	(gimp-hue-saturation layer 0 0 0 25)
+	(set! duo-exit layer)
+  )
+duo-exit
 )
 
 ;fil-int-simplegrain
