@@ -1,4 +1,4 @@
-;FIL v1.5.0
+;FIL v1.5.1
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -16,9 +16,11 @@
 ;http://www.gnu.org/licenses/gpl-3.0.html
 ;
 ;ЛИПС (Лаборатория имитации пленочных снимков) = FIL;
-;Список задач (ver. 1.5.1):
-; - конвеерная обработка;
-; - разработка процесса зернистости "Сульфид";
+;Список задач (ver. 1.6):
+; - переработка API;
+; - оциональный вывод индикации опций;
+; - ввод глобальных переменных ядра;
+; - ввод парадигмы параметров исполнения;
 ;История версий:
 ;===============================================================================================================
 ;ver. 0.3 (19 декабря 2009)
@@ -27,7 +29,7 @@
 ;===============================================================================================================
 ;ver. 0.5 (22 декабря 2009)
 ; - раздельное выполнение цветового и зернового процесса.
-; - Вывод имени учвствовавших в обработке процессов в имя итогового слоя.
+; - вывод имени учвствовавших в обработке процессов в имя итогового слоя.
 ; - модификация спецификаций.
 ; - устанвка классов расширений.
 ;===============================================================================================================
@@ -60,7 +62,7 @@
 ;ver 1.0r3 (26 марта 2010)
 ; - первый публичный релиз;
 ;===============================================================================================================
-;ver 1.5.0 (май 2010)
+;ver 1.5.0 (3 мая 2010)
 ; - полная переработка всех стадий ядра;
 ; - новые спецификации;
 ; - регистрирующие процедуры для процессов цветокорректировки и зернистости;
@@ -68,12 +70,17 @@
 ; - добавлен цветовой процесс "Двутон" (базируется на Split Studio 3);
 ; - добавлен пре-процесс коррекции экспозиции;
 ;===============================================================================================================
+;ver 1.5.1 (5 июня 2010)
+; - конвеерное исполнение ядра FIL;
+; - новый процесс зернистости "Сульфид"
+;===============================================================================================================
 ;Процедуры:			Статус		Ревизия		Спецификации
 ;==========================================ПРОЦЕДУРЫ ЯДРА=======================================================
 ;fil-ng-core			стаб		---		1.5
 ;fil-clr-handle			стаб		---		---
 ;fil-grain-handle		стаб		---		---
 ;fil-source-handle		стаб		---		---
+;fil-ng-batch			стаб		---		---
 ;============================================ПРЕПРОЦЕССЫ========================================================
 ;fil-pre-xps			стаб		r0		1.5
 ;fil-pre-vignette		стаб		r3		1.5
@@ -87,6 +94,7 @@
 ;=======================================ПРОЦЕССЫ ЗЕРНИСТОСТИ====================================================
 ;fil-int-simplegrain		стаб		r2		1.5
 ;fil-int-grain_plus		стаб		r3		1.5
+;fil-int-sulfide		стаб		r0		1.5
 ;=======================================Классы модуей ЛИПС======================================================
 ; -pre - пре-процесс.
 ; -int - внутрення процедура (в файле основного скрипта).
@@ -373,6 +381,9 @@ clr-handle
 
 		     ;Процесс "Зерно+" с id=1
 		     "Зерно+"
+
+		     ;Процесс "Сульфид" с id=2
+		     "Сульфид"
 		     )
 	)
 	(temp-list)
@@ -401,6 +412,7 @@ clr-handle
 						)
 					      )
 	      ))
+	      ((= grain_id 2) (set! grain-exp (quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore)))))
 	    )
 	    (set! temp-list grain-list)
 	    (while (< temp-id grain_id)
@@ -415,34 +427,212 @@ clr-handle
 grain-handle
 )
 
-(script-fu-register
-"fil-ng-core"
-"_ЛИПС 1.5"
-"Лаборатория имитации пленочных снимков"
-"Непочатов Станислав"
-"GPLv3"
-"Январь 2010"
-"RGB,RGBA*"
-SF-IMAGE	"Изображение"			0				;fm_image
-SF-TOGGLE	"Стадия цветокорректировки"	TRUE				;fm_clr_flag
-SF-OPTION 	"Цветовой процесс" 		(fil-clr-handle TRUE 0)		;fm_clr_id
-SF-TOGGLE	"Стадия зернистости"		TRUE				;fm_grain_flag
-SF-OPTION	"Процесс зернистости"		(fil-grain-handle TRUE 0)	;fm_grain_id
-SF-TOGGLE	"Супер зерно (если возможно)"	FALSE				;fm_grain_boost
-SF-TOGGLE	"Включить виньетирование"	FALSE				;fm_pre_vign_flag
-SF-ADJUSTMENT	"Радиус виньетирования (%)"	'(100 85 125 5 10 1 0)		;fm_pre_vign_rad
-SF-ADJUSTMENT	"Мягкость виньетирования (%)"	'(33 20 45 2 5 1 0)		;fm_pre_vign_soft
-SF-ADJUSTMENT	"Плотность виньетирования"	'(100 0 100 10 25 1 0)		;fm_pre_vign_opc
-SF-TOGGLE	"Плохой объектив (медленно)"	FALSE				;fm_pre_blur_flag
-SF-OPTION	"Cтепень размытия"		'("x1" "x2" "x3")		;fm_pre_blur_step
-SF-ADJUSTMENT	"Коррекция экспозиции"		'(0 -2 2 0.1 0.3 1 0)		;fm_pre_xps_control
-SF-TOGGLE	"Работать с видимым"		FALSE				;fm_misc_visible
+;Часть регистрации процедуры FIL, отвечающей за данные автора
+(define fil-credits
+  (list
+  "Непочатов Станислав"
+  "GPLv3"
+  "5 Июня 2010"
+  )
 )
 
-;Регистрация в меню GIMP
-(script-fu-menu-register
-"fil-ng-core"
-_"<Image>/Filters/RSS Devel"
+;Часть регистрации процедуры FIL, отвечающий за настройку процедуры
+(define fil-controls
+  (list
+  SF-TOGGLE	"Стадия цветокорректировки"	TRUE
+  SF-OPTION 	"Цветовой процесс" 		(fil-clr-handle TRUE 0)
+  SF-TOGGLE	"Стадия зернистости"		TRUE
+  SF-OPTION	"Процесс зернистости"		(fil-grain-handle TRUE 0)
+  SF-TOGGLE	"Супер зерно (если возможно)"	FALSE
+  SF-TOGGLE	"Включить виньетирование"	FALSE
+  SF-ADJUSTMENT	"Радиус виньетирования (%)"	'(100 85 125 5 10 1 0)
+  SF-ADJUSTMENT	"Мягкость виньетирования (%)"	'(33 20 45 2 5 1 0)
+  SF-ADJUSTMENT	"Плотность виньетирования"	'(100 0 100 10 25 1 0)
+  SF-TOGGLE	"Плохой объектив (медленно)"	FALSE
+  SF-OPTION	"Cтепень размытия"		'("x1" "x2" "x3")
+  SF-ADJUSTMENT	"Коррекция экспозиции"		'(0 -2 2 0.1 0.3 1 0)
+  )
+)
+
+;Регистрация процедуры ядра fil-ng-core
+(apply script-fu-register
+  (append
+    (list
+    "fil-ng-core"
+    _"<Image>/Filters/RSS Devel/_ЛИПС 1.5"
+    "Лаборатория имитации пленочных снимков"
+    )
+    fil-credits
+    (list
+    "RGB,RGBA*"
+    SF-IMAGE	"Изображение"			0
+    )
+    fil-controls
+    (list
+    SF-TOGGLE	"Работать с видимым"		FALSE
+    )
+  )
+)
+
+;Процедура конвеерного исполнения ядра
+(define (fil-ng-batch		;имя процедуры
+
+	;Управление конвейерным исполненнием
+	fb_dir_in		;адрес входящей директории;
+	fb_input_format		;входящий формат;
+	fb_dir_out		;адрес выходящей директории;
+	fb_out_format		;выходящий формат;
+
+	;Управление цветовыми процессами
+	fbm_clr_flag		;переключатель исполнения цветового процесса;
+	fbm_clr_id		;номер цветового процесса;
+
+	;Управление процессами зернистости
+	fbm_grain_flag		;переключатель исполнения процесса зернистости;
+	fbm_grain_id		;номер процесса зернистости;
+	fbm_grain_boost		;переключатель усиления зернистости;
+
+	;Управление пре-процессами
+	fbm_pre_vign_flag	;переключатель активации виньетирования;
+	fbm_pre_vign_rad	;радиус виньетирования в процентах;
+	fbm_pre_vign_soft	;мягкость виньетирования;
+	fbm_pre_vign_opc	;плотность виньетирования;
+	fbm_pre_blur_flag	;переключатель исполнения размытия;
+	fbm_pre_blur_step	;регулятор размытия;
+	fbm_pre_xps_control	;регулятор корректировки экспозиции;
+	)
+
+  ;Определение входящего формата
+  (define input-ext)
+  (cond
+    ((= fb_input_format 0) (set! input-ext "*"))
+    ((= fb_input_format 1) (set! input-ext "[jJ][pP][gG]"))
+    ((= fb_input_format 2) (set! input-ext "[bB][mM][pP]"))
+    ((= fb_input_format 3) (set! input-ext "[xX][cC][fF]"))
+  )
+
+  ;Определение выходящего формата
+  (define out-ext)
+  (cond
+    ((= fb_out_format 0) (set! out-ext "jpg"))
+    ((= fb_out_format 1) (set! out-ext "png"))
+    ((= fb_out_format 2) (set! out-ext "tif"))
+    ((= fb_out_format 3) (set! out-ext "bmp"))
+    ((= fb_out_format 4) (set! out-ext "xcf"))
+    ((= fb_out_format 5) (set! out-ext "psd"))
+  )
+
+  ;Декларация переменных
+  (let*	(
+	(dir_os (if (equal? (substring gimp-dir 0 1) "/") "/" "\\"))
+	(pattern (string-append fb_dir_in dir_os "*." input-ext))
+	(filelist (cadr (file-glob pattern 1)))
+	(run_mode 1)
+	)
+
+	;Начало цикла
+	(while (not (null? filelist))
+	  (let* (
+		(cur_target (car filelist))
+		(img (car (gimp-file-load 1 cur_target cur_target)))
+		(srclayer)
+		(filename (car (gimp-image-get-filename img)))
+		(target_out)
+		(file)
+		(res_layer)
+		)
+
+		;Предварительное сведение слоев
+		(if (> fb_input_format 2)
+		  (begin
+		    (set! srclayer (car (gimp-image-get-active-layer img)))
+		    (gimp-edit-copy-visible img)
+		    (set! srclayer (car (gimp-edit-paste srclayer TRUE)))
+		    (gimp-floating-sel-to-layer srclayer)
+		    (gimp-drawable-set-name srclayer "Viz-src")
+		    (gimp-image-raise-layer-to-top img srclayer)
+		  )
+		  (set! srclayer (car (gimp-image-get-active-layer img)))
+		)
+
+		;Непосредственно процедура запуска процедуры ядра fil-ng-core
+		(fil-ng-core 
+		  img				;>>fm_image
+		  fbm_clr_flag			;>>fm_clr_flag
+		  fbm_clr_id			;>>fm_clr_id
+		  fbm_grain_flag		;>>fm_grain_flag
+		  fbm_grain_id			;>>fm_grain_id
+		  fbm_grain_boost		;>>fm_grain_boost
+		  fbm_pre_vign_flag		;>>fm_pre_vign_flag
+		  fbm_pre_vign_rad		;>>fm_pre_vign_rad
+		  fbm_pre_vign_soft		;>>fm_pre_vign_soft
+		  fbm_pre_vign_opc		;>>fm_pre_vign_opc
+		  fbm_pre_blur_flag		;>>fm_pre_blur_flag
+		  fbm_pre_blur_step		;>>fm_pre_blur_step
+		  fbm_pre_xps_control		;>>fm_pre_xps_control
+		  FALSE				;>>fm_misc_visible
+		)
+
+		;Полседующее сведение слоев
+		(if (< fb_out_format 4)
+		  (set! res_layer (car (gimp-image-merge-visible-layers img 0)))
+		  (set! res_layer (car (gimp-image-get-active-layer img)))
+		)
+
+		;Обработка строковых переменных и получение выходящего пути
+		(set! file (substring filename (string-length fb_dir_in) (- (string-length filename) 4 )))
+		(set! target_out (string-append fb_dir_out "/" file "_FIL." out-ext))
+
+		;Сохранение файла
+		(cond
+		  ((= fb_out_format 0) (file-jpeg-save 1 img res_layer target_out target_out 1 0 1 1 "" 2 1 0 0))
+		  ((= fb_out_format 1) (file-png-save-defaults 1 img res_layer target_out target_out))
+		  ((= fb_out_format 2) (file-tiff-save 1 img res_layer target_out target_out 1))
+		  ((= fb_out_format 3) (file-bmp-save 1 img res_layer target_out target_out))
+		  ((= fb_out_format 4) (gimp-xcf-save 1 img res_layer target_out target_out))
+		  ((= fb_out_format 5) (file-psd-save 1 img res_layer target_out target_out 1 0))
+		)
+
+		;Удаление изображения
+		(gimp-image-delete img)
+	  )
+
+	  ;Сдвиг списка имен файлов и завершение этапа цикла
+	  (set! filelist (cdr filelist))
+	)
+  )
+)
+
+;Регистрация процедуры пакетной обработки ядра fil-ng-batch
+(apply script-fu-register
+  (append
+    (list
+    "fil-ng-batch"
+    _"<Image>/Filters/RSS Devel/_ЛИПС 1.5 Конвейер"
+    "Конвейерное исполнение ЛИПС"
+    )
+    fil-credits
+    (list
+    ""
+    SF-DIRNAME	"Папка-источник"	"/home/spoilt/Документы/Batch/IN"
+    SF-OPTION	"Входящий формат"	'(
+					"*"
+					"JPG"
+					"TIFF"
+					"XCF"
+					)
+    SF-DIRNAME	"Папка-назначение"	"/home/spoilt/Документы/Batch/OUT"
+    SF-OPTION	"Формат сохранения"	'(
+					"JPG"
+					"PNG"
+					"TIF"
+					"BMP"
+					"XCF"
+					"PSD"
+					)
+    )
+    fil-controls
+  )
 )
 
 ;fil-source-handle
@@ -824,4 +1014,62 @@ duo-exit
 	(set! adv-exit clr_res)
   )
 adv-exit
+)
+
+;fil-int-sulfide
+;ПРОЦЕСС ЗЕРНИСТОСТИ
+;Входные переменные:
+;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
+;СЛОЙ - обрабатываемый слой;
+;ЦЕЛОЕ - значение высоты изображения;
+;ЦЕЛОЕ - значение ширины изображения;
+;ЦВЕТ - цвет переднего плана;
+;Возвращаемые значения:
+;СЛОЙ - обработанный слой;
+(define (fil-int-sulfide image layer imh imw foreground)
+(define sulf-exit)
+  (let* (
+	(scale_step 2.8)
+	(scale_layer)
+	(grain_layer)
+	(grain_mask)
+	(rel_step (if (> imh imw) (/ imh 1100) (/ imw 1100)))
+	)
+	(set! scale_layer
+	  (car 
+	    (gimp-layer-new image imw imh 0 "Scale layer" 100 0)
+	  )
+	)
+	(gimp-image-add-layer image scale_layer -1)
+	(gimp-context-set-foreground '(128 128 128))
+	(gimp-drawable-fill scale_layer 0)
+	(plug-in-hsv-noise 1 image scale_layer 2 3 0 25)
+	(gimp-context-set-foreground foreground)
+	(gimp-layer-set-mode scale_layer 5)
+	(gimp-brightness-contrast scale_layer 0 75)
+	(set! grain_mask
+	  (car
+	    (gimp-layer-create-mask layer 5)
+	  )
+	)
+	(set! grain_layer (car (gimp-layer-copy scale_layer FALSE)))
+	(gimp-image-add-layer image grain_layer -1)
+	(gimp-drawable-set-name grain_layer "Normal grain")
+	(gimp-layer-scale-full scale_layer (* imw scale_step) (* imh scale_step) TRUE 2)
+	(gimp-layer-set-opacity scale_layer 45)
+	(gimp-layer-resize-to-image-size scale_layer)
+	(set! layer
+	  (car
+	    (gimp-image-merge-down image scale_layer 0)
+	  )
+	)
+	(set! layer
+	  (car
+	    (gimp-image-merge-down image grain_layer 0)
+	  )
+	)
+	(plug-in-gauss-iir2 1 image layer rel_step rel_step)
+	(set! sulf-exit layer)
+  )
+sulf-exit
 )
