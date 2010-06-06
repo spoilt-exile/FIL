@@ -1,4 +1,4 @@
-;FIL v1.5.1
+;FIL v1.6 alpha1
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -17,10 +17,11 @@
 ;
 ;ЛИПС (Лаборатория имитации пленочных снимков) = FIL;
 ;Список задач (ver. 1.6):
-; - переработка API;
+; - переработка API;				(СДЕЛАНО)
 ; - оциональный вывод индикации опций;
 ; - ввод глобальных переменных ядра;
 ; - ввод парадигмы параметров исполнения;
+; - опциональное совмещение слоев и гипервизор
 ;История версий:
 ;===============================================================================================================
 ;ver. 0.3 (19 декабря 2009)
@@ -76,9 +77,8 @@
 ;===============================================================================================================
 ;Процедуры:			Статус		Ревизия		Спецификации
 ;==========================================ПРОЦЕДУРЫ ЯДРА=======================================================
-;fil-ng-core			стаб		---		1.5
-;fil-clr-handle			стаб		---		---
-;fil-grain-handle		стаб		---		---
+;fil-ng-core			стаб		---		1.6
+;fil-stage-handle		стаб		---		---
 ;fil-source-handle		стаб		---		---
 ;fil-ng-batch			стаб		---		---
 ;============================================ПРЕПРОЦЕССЫ========================================================
@@ -100,15 +100,80 @@
 ; -int - внутрення процедура (в файле основного скрипта).
 ; -ext - внешняя процедура (вне основного скрипта).
 ; -dep - внешняя процедура требующая внешних плагинов.
-;================================Набор требований к процессам ЛИПС 1.5:=========================================
-; * процессы не должны изменять глобальные параметры (размеры изображения или состояния стека отмены).
+;================================Набор требований к процессам ЛИПС 1.6:=========================================
+; * процессы не должны изменять размеры изорбражения и его параметры (глубина цвета).
+; * процессы могут изменять состояние стека отмены, по умолчанию стек отмены будет заморожен для всего ядра.
 ; * процессы могут брать параметры изображения непосредственно из ядра (переменные с префиксом fc).
-; * процессы должны быть зарегестрированы в процедурах fil-clr-handle и fil-grain-handle для работоспособности.
+; * регистрируемые стадии должны быть определены собственной переменной и включены в состав fk-stages-list.
+; * процессы должны быть зарегестрированы в переменных fk-clr-stage и fk-grain-stage для работоспособности.
 ; * процессы должны по окончанию работы возвращать итоговый слой ядру (если процесс оперирует слоями).
-; * усиление зернистости должен поддерживать сам процесс зернистости.
+; * процессы могут иметь специальные параметры запуска тем самым реализуя запуск с определенными параметрами.
+;========================================Стадии ядра ЛИПС 1.6===================================================
+;Стадия			Регистрируемая			Номер стадии (stage_id)
+;pre-stage		НЕТ				0
+;fk-clr-stage		ДА				1
+;fk-grain-stage		ДА				2
 ;===============================================================================================================
 
-;Ядро
+;Глобальные переменные ядра
+
+;Регистрация процедур стадии ядра с stage_id=1 (стадия цветовых процессов);
+(define fk-clr-stage)
+(set! fk-clr-stage
+  (list
+    
+    ;Процесс "СОВ" с proc_id=0
+    (list "СОВ" 		(quote (set! fp_clr_layer (fil-int-sov fm_image fp_clr_layer fc_imh fc_imw))))
+
+    ;Процесс "Ч/Б" с proc_id=1
+    (list "Ч/Б" 		(quote (fil-int-gray fm_image fp_clr_layer)))
+
+    ;Процесс "Ломо" с proc_id=2
+    (list "Ломо" 		(quote (fil-int-lomo fm_image fp_clr_layer)))
+
+    ;Процесс "Сепия" proc_id=3
+    (list "Сепия" 		(quote (set! fp_clr_layer (fil-int-sepia fm_image fp_clr_layer fc_imh fc_imw fc_fore))))
+
+    ;Процесс "Двутон" proc_id=4
+    (list "Двутон" 		(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer))))
+  )
+)
+
+;Регистрация процедур стадии ядра с stage_id=2 (стадия процессов зернистости);
+(define fk-grain-stage)
+(set! fk-grain-stage
+  (list
+
+    ;Процесс "Простая зернистость" с proc_id=0
+    (list "Простая зернистость"	(quote (fil-int-simplegrain fm_image fp_grain_layer)))
+
+    ;Процесс "Зерно+" с proc_id=1
+    (list "Зерно+" 		(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore FALSE))))
+
+    ;Процесс "Зерно+ усиленное" с proc_id=2
+    (list "Зерно+ усил." 	(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore TRUE))))
+
+    ;Процесс "Сульфид" с proc_id=3
+    (list "Сульфид"		(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore))))
+  )
+)
+
+;Единая переменная листа регистрируемых стадий процессов
+(define fk-stages-list 
+  (list 
+    FALSE			;Стадия пре-процессов (нерегистрируемая) обозначается как FALSE;
+    fk-clr-stage		;Стадия цветовых процессов;
+    fk-grain-stage		;Стадия процессов зернистости;
+    )
+)
+
+;Счетчик стадий для ядра
+(define fk-stage-counter 0)
+
+;Переключатель совмещения слоев
+(define fk-merge-layers TRUE)
+
+;Процедура ядра FIL
 (define (fil-ng-core		;имя процедуры;
 
 	;Главные атрибуты запуска
@@ -228,8 +293,9 @@
 	  )
 	)
 
-	;Передача слоя между стадиями
+	;Передача слоя между стадиями и корректировка счетчика стадий
 	(set! fp_clr_layer fp_pre_layer)
+	(set! fk-stage-counter (+ fk-stage-counter 1))
 
 	;Запуск цветового процесса
 	(if (= fm_clr_flag TRUE)
@@ -241,9 +307,9 @@
 	    )
 
 	    ;Инициализация листа процессов
-	    (set! fx_clr_list (fil-clr-handle FALSE fm_clr_id))
-	    (set! fx_clr_exp (car fx_clr_list))
-	    (set! fs_clr_str (cadr fx_clr_list))
+	    (set! fx_clr_list (fil-stage-handle FALSE fk-stage-counter fm_clr_id))
+	    (set! fs_clr_str (car fx_clr_list))
+	    (set! fx_clr_exp (cadr fx_clr_list))
 
 	    ;Запуск исполнения процесса
 	    (eval fx_clr_exp)
@@ -256,8 +322,9 @@
 	  )
 	)
 
-	;Передача слоя между стадиями
+	;Передача слоя между стадиями и корректировка счетчика стадий
 	(set! fp_grain_layer fp_clr_layer)
+	(set! fk-stage-counter (+ fk-stage-counter 1))
 
 	;Запуск процесса генерации зерна
 	(if (= fm_grain_flag TRUE)
@@ -269,9 +336,9 @@
 	    )
 
 	    ;Инициализация листа процессов зернистости
-	    (set! fx_grain_list (fil-grain-handle FALSE fm_grain_id))
-	    (set! fx_grain_exp (car fx_grain_list))
-	    (set! fs_grain_str (cadr fx_grain_list))
+	    (set! fx_grain_list (fil-stage-handle FALSE fk-stage-counter fm_grain_id))
+	    (set! fs_grain_str (car fx_grain_list))
+	    (set! fx_grain_exp (cadr fx_grain_list))
 
 	    ;Запуск исполнения процесса
 	    (eval fx_grain_exp)
@@ -289,142 +356,75 @@
   )
 
   ;Завершение исполнения
+  (set! fk-stage-counter 0)
   (gimp-image-undo-enable fm_image)
   (gimp-context-pop)
 )
 
-;fil-clr-handle
+;fil-stage-handle
 ;МОДУЛЬ ЯДРА
 ;Входные переменные:
-;КОМБИНАЦИЯ - TRUE если требуется возвратить лист процессов / FALSE для возвращения лист с переменными запуска;
+;БУЛЕВОЕ - TRUE если требуется возвратить лист процессов / FALSE для возвращения лист с переменными запуска;
+;ЦЕЛОЕ - номер стадии ядра (обязательный параметр);
 ;ЦЕЛОЕ - номер выбранного процесса (занулить если нужно возвратить список);
 ;Возвращаемые значения:
-;КОМБИНАЦИЯ - лист с текстовыми названиями процессов / лист с именем процесса и блоком кода;
-(define (fil-clr-handle param clr_id)
-(define clr-handle)
-  (let* (
+;ЛИСТ - лист с текстовыми названиями процессов / лист с именем процесса и блоком кода;
+(define (fil-stage-handle param stage_id proc_id)
+(define stage-handle)
+(let* (
+      (stage_error (string-append "ЛИПС не нашел стадию с указанным номером:\nstage_id=" (number->string stage_id)))
+      (proc_error (string-append "ЛИПС не нашел процесс с указанным номером:\nstage_id=" (number->string stage_id) "\nproc_id=" (number->string proc_id)))
+      (stage_counter -1)
+      (proc_counter -1)
+      (current_stage_list)
+      (name_list '())
+      (proc_list)
+      (temp_list)
+      (temp_entry)
+      )
+      (set! temp_list fk-stages-list)
 
-	;Список с именами цветовых процессов
-	(clr-list '(
-		   ;Процесс "СОВ" с id=0
-		   "СОВ"
-
-		   ;Процесс "Ч/Б" с id=1
-		   "Ч/Б"
-  
-		   ;Процесс "Ломо" с id=2
-		   "Ломо"
-
-		   ;Процесс "Сепия" id=3
-		   "Сепия"
-
-		   ;Процесс "Двутон" id=4
-		   "Двутон"
-		   )
-	)
-	(temp-list)
-	(temp-id -1)
-	(clr-exp)
-	(clr-name)
-	)
-
-	(if (= param TRUE)
-	  (set! clr-handle clr-list)
+      ;Получение листа текущей стадии
+      (if (not (or (= stage_id 0) (> stage_id (- (length fk-stages-list) 1))))
+	(while (< stage_counter stage_id)
 	  (begin
-    
-	    ;Список с блоками запуска цветовых процессов
-	    (cond
-
-	      ;Блок запуска процесса "СОВ"
-	      ((= clr_id 0) (set! clr-exp (quote (set! fp_clr_layer (fil-int-sov fm_image fp_clr_layer fc_imh fc_imw)))))
-
-	      ;Блок запуска процесса "Ч/Б"
-	      ((= clr_id 1) (set! clr-exp (quote (fil-int-gray fm_image fp_clr_layer))))
-
-	      ;Блок запуска процесса "Ломо"
-	      ((= clr_id 2) (set! clr-exp (quote (fil-int-lomo fm_image fp_clr_layer))))
-
-	      ;Блок запуска процесса "Сепия"
-	      ((= clr_id 3) (set! clr-exp (quote (set! fp_clr_layer (fil-int-sepia fm_image fp_clr_layer fc_imh fc_imw fc_fore)))))
-
-	      ;Блок запуска процесса "Двутон"
-	      ((= clr_id 4) (set! clr-exp (quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer)))))
-	    )
-	    (set! temp-list clr-list)
-	    (while (< temp-id clr_id)
-	      (set! clr-name (car temp-list))
-	      (set! temp-id (+ temp-id 1))
-	      (set! temp-list (cdr temp-list))
-	    )
-	    (set! clr-handle (list clr-exp clr-name))
+	    (set! current_stage_list (car temp_list))
+	    (set! stage_counter (+ stage_counter 1))
+	    (set! temp_list (cdr temp_list))
 	  )
 	)
-  )
-clr-handle
+	(gimp-message stage_error)
+      )
+
+      (if (= param TRUE)
+
+	;Генерирование листа с именами прцессов
+	(begin
+	  (while (not (null? current_stage_list))
+	    (set! temp_entry (car current_stage_list))
+	    (set! name_list (append name_list (list (car temp_entry))))
+	    (set! current_stage_list (cdr current_stage_list))
+	  )
+	  (set! stage-handle name_list)
+	)
+
+	;Получени листа с именем процесс и блоком запуска
+	(begin
+	  (if (not (or (< proc_id 0) (> proc_id (- (length current_stage_list) 1))))
+	    (begin
+	      (while (< proc_counter proc_id)
+		(set! proc_list (car current_stage_list))
+		(set! proc_counter (+ proc_counter 1))
+		(set! current_stage_list (cdr current_stage_list))
+	      )
+	    )
+	    (gimp-message proc_error)
+	  )
+	  (set! stage-handle proc_list)
+	)
+      )
 )
-
-;fil-grain-handle
-;МОДУЛЬ ЯДРА
-;Входные переменные:
-;КОМБИНАЦИЯ - TRUE если требуется возвратить лист процессов / FALSE для возвращения лист с переменными запуска;
-;ЦЕЛОЕ - номер выбранного процесса (занулить если нужно возвратить список);
-;Возвращаемые значения:
-;КОМБИНАЦИЯ - лист с текстовыми названиями процессов / лист с именем процесса и блоком кода;
-(define (fil-grain-handle param grain_id)
-(define grain-handle)
-  (let* (
-
-	;Список с именами процессов зернистости
-	(grain-list '(
-		     ;Процесс "Простая зернистость" с id=0
-		     "Простая зернистость"
-
-		     ;Процесс "Зерно+" с id=1
-		     "Зерно+"
-
-		     ;Процесс "Сульфид" с id=2
-		     "Сульфид"
-		     )
-	)
-	(temp-list)
-	(temp-id -1)
-	(grain-exp)
-	(grain-name)
-	)
-
-	(if (= param TRUE)
-	  (set! grain-handle grain-list)
-	  (begin
-
-	    ;Список с блоками запуска процессов зернистости
-	    (cond
-
-	      ;Блок запуска процесса "Простая зернистость"
-	      ((= grain_id 0) (set! grain-exp (quote (fil-int-simplegrain fm_image fp_grain_layer))))
-
-	      ;Блок запуска процесса "Зерно+"
-	      ((= grain_id 1) (set! grain-exp (quote
-						(begin
-						  (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore fm_grain_boost))
-						  (if (= fm_grain_boost TRUE)
-						    (set! fs_grain_str (string-append fs_grain_str " усил."))
-						  )
-						)
-					      )
-	      ))
-	      ((= grain_id 2) (set! grain-exp (quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore)))))
-	    )
-	    (set! temp-list grain-list)
-	    (while (< temp-id grain_id)
-	      (set! grain-name (car temp-list))
-	      (set! temp-id (+ temp-id 1))
-	      (set! temp-list (cdr temp-list))
-	    )
-	    (set! grain-handle (list grain-exp grain-name))
-	  )
-	)
-  )
-grain-handle
+stage-handle
 )
 
 ;Часть регистрации процедуры FIL, отвечающей за данные автора
@@ -432,7 +432,7 @@ grain-handle
   (list
   "Непочатов Станислав"
   "GPLv3"
-  "5 Июня 2010"
+  "Июнь 2010"
   )
 )
 
@@ -440,9 +440,9 @@ grain-handle
 (define fil-controls
   (list
   SF-TOGGLE	"Стадия цветокорректировки"	TRUE
-  SF-OPTION 	"Цветовой процесс" 		(fil-clr-handle TRUE 0)
+  SF-OPTION 	"Цветовой процесс" 		(fil-stage-handle TRUE 1 0)
   SF-TOGGLE	"Стадия зернистости"		TRUE
-  SF-OPTION	"Процесс зернистости"		(fil-grain-handle TRUE 0)
+  SF-OPTION	"Процесс зернистости"		(fil-stage-handle TRUE 2 0)
   SF-TOGGLE	"Супер зерно (если возможно)"	FALSE
   SF-TOGGLE	"Включить виньетирование"	FALSE
   SF-ADJUSTMENT	"Радиус виньетирования (%)"	'(100 85 125 5 10 1 0)
@@ -459,7 +459,7 @@ grain-handle
   (append
     (list
     "fil-ng-core"
-    _"<Image>/Filters/RSS Devel/_ЛИПС 1.5"
+    _"<Image>/Filters/RSS Devel/_ЛИПС 1.6 alpha1"
     "Лаборатория имитации пленочных снимков"
     )
     fil-credits
@@ -608,7 +608,7 @@ grain-handle
   (append
     (list
     "fil-ng-batch"
-    _"<Image>/Filters/RSS Devel/_ЛИПС 1.5 Конвейер"
+    _"<Image>/Filters/RSS Devel/ЛИПС 1.6 alpha1 _Конвейер"
     "Конвейерное исполнение ЛИПС"
     )
     fil-credits
