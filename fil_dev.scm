@@ -1,4 +1,4 @@
-;FIL v1.6 alpha1
+;FIL v1.6 RC1
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -18,10 +18,12 @@
 ;ЛИПС (Лаборатория имитации пленочных снимков) = FIL;
 ;Список задач (ver. 1.6):
 ; - переработка API;				(СДЕЛАНО)
-; - оциональный вывод индикации опций;
-; - ввод глобальных переменных ядра;
-; - ввод парадигмы параметров исполнения;
-; - опциональное совмещение слоев и гипервизор
+; - оциональный вывод индикации опций;		(СДЕЛАНО)
+; - ввод глобальных переменных ядра;		(СДЕАЛНО)
+; - ввод парадигмы параметров исполнения;	(СДЕЛАНО)
+; - опциональное совмещение слоев и гипервизор	(ОТБРОШЕНО)
+; - режим "Гранж" в процесс "Сульфид"		(СДЕЛАНО)
+; - реализовать поддержку стека отмены;		(ОТБРОШЕНО)
 ;История версий:
 ;===============================================================================================================
 ;ver. 0.3 (19 декабря 2009)
@@ -82,27 +84,27 @@
 ;fil-source-handle		стаб		---		---
 ;fil-ng-batch			стаб		---		---
 ;============================================ПРЕПРОЦЕССЫ========================================================
-;fil-pre-xps			стаб		r0		1.5
-;fil-pre-vignette		стаб		r3		1.5
-;fil-pre-badblur		стаб		r1		1.5
+;fil-pre-xps			стаб		r0		1.6
+;fil-pre-vignette		стаб		r3		1.6
+;fil-pre-badblur		стаб		r1		1.6
 ;=========================================ЦВЕТОВЫЕ ПРОЦЕССЫ=====================================================
-;fil-int-sov			стаб		r4		1.5
-;fil-int-gray			стаб		r2		1.5
-;fil-int-lomo			стаб		r1		1.5
-;fil-int-sepia			стаб		r3		1.5
-;fil-int-duo			стаб		r0		1.5
+;fil-int-sov			стаб		r5		1.6
+;fil-int-gray			стаб		r2		1.6
+;fil-int-lomo			стаб		r1		1.6
+;fil-int-sepia			стаб		r4		1.6
+;fil-int-duo			стаб		r1		1.6
 ;=======================================ПРОЦЕССЫ ЗЕРНИСТОСТИ====================================================
-;fil-int-simplegrain		стаб		r2		1.5
-;fil-int-grain_plus		стаб		r3		1.5
-;fil-int-sulfide		стаб		r0		1.5
+;fil-int-simplegrain		стаб		r2		1.6
+;fil-int-grain_plus		стаб		r4		1.6
+;fil-int-sulfide		стаб		r2		1.6
 ;=======================================Классы модуей ЛИПС======================================================
 ; -pre - пре-процесс.
 ; -int - внутрення процедура (в файле основного скрипта).
 ; -ext - внешняя процедура (вне основного скрипта).
 ; -dep - внешняя процедура требующая внешних плагинов.
 ;================================Набор требований к процессам ЛИПС 1.6:=========================================
+; * процессы не могут вызывать процессы ЛИПС от своего имени, но могут обращатся к дополнительным процедурам.
 ; * процессы не должны изменять размеры изорбражения и его параметры (глубина цвета).
-; * процессы могут изменять состояние стека отмены, по умолчанию стек отмены будет заморожен для всего ядра.
 ; * процессы могут брать параметры изображения непосредственно из ядра (переменные с префиксом fc).
 ; * регистрируемые стадии должны быть определены собственной переменной и включены в состав fk-stages-list.
 ; * процессы должны быть зарегестрированы в переменных fk-clr-stage и fk-grain-stage для работоспособности.
@@ -122,20 +124,32 @@
 (set! fk-clr-stage
   (list
     
-    ;Процесс "СОВ" с proc_id=0
-    (list "СОВ" 		(quote (set! fp_clr_layer (fil-int-sov fm_image fp_clr_layer fc_imh fc_imw))))
+    ;Процесс "СОВ: обычный" с proc_id=0
+    (list "СОВ: обычный" 	(quote (set! fp_clr_layer (fil-int-sov fm_image fp_clr_layer fc_imh fc_imw 60 65))))
 
-    ;Процесс "Ч/Б" с proc_id=1
+    ;Процесс "СОВ: легк." с proc_id=1
+    (list "СОВ: легкий" 	(quote (set! fp_clr_layer (fil-int-sov fm_image fp_clr_layer fc_imh fc_imw 30 35))))
+
+    ;Процесс "Ч/Б" с proc_id=2
     (list "Ч/Б" 		(quote (fil-int-gray fm_image fp_clr_layer)))
 
-    ;Процесс "Ломо" с proc_id=2
+    ;Процесс "Ломо" с proc_id=3
     (list "Ломо" 		(quote (fil-int-lomo fm_image fp_clr_layer)))
 
-    ;Процесс "Сепия" proc_id=3
-    (list "Сепия" 		(quote (set! fp_clr_layer (fil-int-sepia fm_image fp_clr_layer fc_imh fc_imw fc_fore))))
+    ;Процесс "Сепия:  обычная" proc_id=4
+    (list "Сепия: обычная" 	(quote (set! fp_clr_layer (fil-int-sepia fm_image fp_clr_layer fc_imh fc_imw fc_fore FALSE))))
 
-    ;Процесс "Двутон" proc_id=4
-    (list "Двутон" 		(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer))))
+    ;Процесс "Сепия: с имитацией" proc_id=5
+    (list "Сепия: с имитацией"	(quote (set! fp_clr_layer (fil-int-sepia fm_image fp_clr_layer fc_imh fc_imw fc_fore TRUE))))
+
+    ;Процесс "Двутон: обычный" proc_id=6
+    (list "Двутон: обычный" 	(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 75 '(200 175 140) '(80 102 109)))))
+
+    ;Процесс "Двутон: низ. контраст" proc_id=7
+    (list "Двутон: мягкий" 	(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 30 '(200 175 140) '(80 102 109)))))
+
+    ;Процесс "Двутон: низ. контраст" proc_id=8
+    (list "Двутон: свои цвета" 	(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 55 fc_fore fc_back))))
   )
 )
 
@@ -148,13 +162,19 @@
     (list "Простая зернистость"	(quote (fil-int-simplegrain fm_image fp_grain_layer)))
 
     ;Процесс "Зерно+" с proc_id=1
-    (list "Зерно+" 		(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore FALSE))))
+    (list "Зерно+: обыч." 	(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore FALSE))))
 
     ;Процесс "Зерно+ усиленное" с proc_id=2
-    (list "Зерно+ усил." 	(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore TRUE))))
+    (list "Зерно+: усил." 	(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore TRUE))))
 
-    ;Процесс "Сульфид" с proc_id=3
-    (list "Сульфид"		(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore))))
+    ;Процесс "Сульфид: обычный" с proc_id=3
+    (list "Сульфид: обычный"	(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 2.5 FALSE))))
+
+    ;Процесс "Сульфид: крупный" с proc_id=4
+    (list "Сульфид: крупный"	(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 3.1 FALSE))))
+
+    ;Процесс "Сульфид: обычный" с proc_id=5
+    (list "Сульфид: гранж"	(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 2.7 TRUE))))
   )
 )
 
@@ -170,9 +190,6 @@
 ;Счетчик стадий для ядра
 (define fk-stage-counter 0)
 
-;Переключатель совмещения слоев
-(define fk-merge-layers TRUE)
-
 ;Процедура ядра FIL
 (define (fil-ng-core		;имя процедуры;
 
@@ -186,18 +203,17 @@
 	;Управление процессами зернистости
 	fm_grain_flag		;переключатель исполнения процесса зернистости;
 	fm_grain_id		;номер процесса зернистости;
-	fm_grain_boost		;переключатель усиления зернистости;
 
 	;Управление пре-процессами
 	fm_pre_vign_flag	;переключатель активации виньетирования;
 	fm_pre_vign_rad		;радиус виньетирования в процентах;
 	fm_pre_vign_soft	;мягкость виньетирования;
 	fm_pre_vign_opc		;плотность виньетирования;
-	fm_pre_blur_flag	;переключатель исполнения размытия;
 	fm_pre_blur_step	;регулятор размытия;
 	fm_pre_xps_control	;регулятор корректировки экспозиции;
 
 	;Дополнительные параметры
+	fm_misc_logout		;переключатель опционального вывода опций;
 	fm_misc_visible		;переключатель использования видимого;
 	)
 
@@ -240,11 +256,12 @@
 	(fs_xps_str "Эксп. ")					;метка индикации корректировки экспозиции
 	(fs_vign_str "(В) ")					;приставка для отображения итогового слоя с виньетированием
 	(fs_blur_str "Разм. x")					;приставка для отображения итогового слоя с размытием
+	(fs_default_str "Результат обработки ЛИПС")		;имя конечного слоя без индикации переменных
 	)
 
 	;Секция активации исполнения пре-процессов
 	(cond
-	  ((= fm_pre_blur_flag TRUE) (set! fl_pre_flag TRUE))
+	  ((> fm_pre_blur_step 0) (set! fl_pre_flag TRUE))
 	  ((and (= fm_pre_vign_flag TRUE) (> fm_pre_vign_opc 0)) (set! fl_pre_flag TRUE))
 	  ((not (= fm_pre_xps_control 0)) (set! fl_pre_flag TRUE))
 	)
@@ -280,15 +297,16 @@
 	    )
 	    
 	    ;Запуск размытия
-	    (if (= fm_pre_blur_flag TRUE)
+	    (if (> fm_pre_blur_step 0)
 	      (begin
 		(fil-pre-badblur fm_image fp_pre_layer fc_imh fc_imw fm_pre_blur_step)
 		(set! fs_res_str (string-append fs_res_str fs_blur_str (number->string (+ fm_pre_blur_step 1)) " "))
 	      )
 	    )
 
-	    (if (and (= fm_clr_flag FALSE) (= fm_grain_flag FALSE))
+	    (if (= fm_misc_logout TRUE)
 	      (gimp-drawable-set-name fp_pre_layer fs_res_str)
+	      (gimp-drawable-set-name fp_pre_layer fs_default_str)
 	    )
 	  )
 	)
@@ -316,8 +334,9 @@
 
 	    ;Захват готового слоя и его имени
 	    (set! fs_res_str (string-append fs_res_str fs_pref_clr fs_clr_str " "))
-	    (if (= fm_grain_flag FALSE)
+	    (if (= fm_misc_logout TRUE)
 	      (gimp-drawable-set-name fp_clr_layer fs_res_str)
+	      (gimp-drawable-set-name fp_clr_layer fs_default_str)
 	    )
 	  )
 	)
@@ -345,7 +364,10 @@
 
 	    ;Завершение сборки имени итогового слоя
 	    (set! fs_res_str (string-append fs_res_str fs_pref_grain fs_grain_str))
-	    (gimp-drawable-set-name fp_grain_layer fs_res_str)
+	    (if (= fm_misc_logout TRUE)
+	      (gimp-drawable-set-name fp_grain_layer fs_res_str)
+	      (gimp-drawable-set-name fp_grain_layer fs_default_str)
+	    )
 	  )
 	)
 
@@ -355,8 +377,10 @@
 	(gimp-displays-flush)
   )
 
-  ;Завершение исполнения
+  ;Обнуление счетчика стадий
   (set! fk-stage-counter 0)
+
+  ;Завершение исполнения
   (gimp-image-undo-enable fm_image)
   (gimp-context-pop)
 )
@@ -443,14 +467,13 @@ stage-handle
   SF-OPTION 	"Цветовой процесс" 		(fil-stage-handle TRUE 1 0)
   SF-TOGGLE	"Стадия зернистости"		TRUE
   SF-OPTION	"Процесс зернистости"		(fil-stage-handle TRUE 2 0)
-  SF-TOGGLE	"Супер зерно (если возможно)"	FALSE
   SF-TOGGLE	"Включить виньетирование"	FALSE
   SF-ADJUSTMENT	"Радиус виньетирования (%)"	'(100 85 125 5 10 1 0)
   SF-ADJUSTMENT	"Мягкость виньетирования (%)"	'(33 20 45 2 5 1 0)
   SF-ADJUSTMENT	"Плотность виньетирования"	'(100 0 100 10 25 1 0)
-  SF-TOGGLE	"Плохой объектив (медленно)"	FALSE
-  SF-OPTION	"Cтепень размытия"		'("x1" "x2" "x3")
+  SF-OPTION	"Cтепень размытия краев"	'("Отключено" "x1" "x2" "x3")
   SF-ADJUSTMENT	"Коррекция экспозиции"		'(0 -2 2 0.1 0.3 1 0)
+  SF-TOGGLE	"Записать опции в имя слоя"	FALSE
   )
 )
 
@@ -459,7 +482,7 @@ stage-handle
   (append
     (list
     "fil-ng-core"
-    _"<Image>/Filters/RSS Devel/_ЛИПС 1.6 alpha1"
+    _"<Image>/Filters/RSS Devel/_ЛИПС 1.6 RC1"
     "Лаборатория имитации пленочных снимков"
     )
     fil-credits
@@ -490,16 +513,17 @@ stage-handle
 	;Управление процессами зернистости
 	fbm_grain_flag		;переключатель исполнения процесса зернистости;
 	fbm_grain_id		;номер процесса зернистости;
-	fbm_grain_boost		;переключатель усиления зернистости;
 
 	;Управление пре-процессами
 	fbm_pre_vign_flag	;переключатель активации виньетирования;
 	fbm_pre_vign_rad	;радиус виньетирования в процентах;
 	fbm_pre_vign_soft	;мягкость виньетирования;
 	fbm_pre_vign_opc	;плотность виньетирования;
-	fbm_pre_blur_flag	;переключатель исполнения размытия;
 	fbm_pre_blur_step	;регулятор размытия;
 	fbm_pre_xps_control	;регулятор корректировки экспозиции;
+	
+	;Дополнительные элементы управления
+	fbm_misc_logout		;переключатель опционального вывода опций;
 	)
 
   ;Определение входящего формата
@@ -562,14 +586,13 @@ stage-handle
 		  fbm_clr_id			;>>fm_clr_id
 		  fbm_grain_flag		;>>fm_grain_flag
 		  fbm_grain_id			;>>fm_grain_id
-		  fbm_grain_boost		;>>fm_grain_boost
 		  fbm_pre_vign_flag		;>>fm_pre_vign_flag
 		  fbm_pre_vign_rad		;>>fm_pre_vign_rad
 		  fbm_pre_vign_soft		;>>fm_pre_vign_soft
 		  fbm_pre_vign_opc		;>>fm_pre_vign_opc
-		  fbm_pre_blur_flag		;>>fm_pre_blur_flag
 		  fbm_pre_blur_step		;>>fm_pre_blur_step
 		  fbm_pre_xps_control		;>>fm_pre_xps_control
+		  fbm_misc_logout		;>>fm_misc_logout
 		  FALSE				;>>fm_misc_visible
 		)
 
@@ -608,7 +631,7 @@ stage-handle
   (append
     (list
     "fil-ng-batch"
-    _"<Image>/Filters/RSS Devel/ЛИПС 1.6 alpha1 _Конвейер"
+    _"<Image>/Filters/RSS Devel/ЛИПС 1.6 RC1 _Конвейер"
     "Конвейерное исполнение ЛИПС"
     )
     fil-credits
@@ -792,7 +815,9 @@ vign-exit
 ;ЦЕЛОЕ - значение степени размытия;
 (define (fil-pre-badblur image layer imh imw ext)
   (set! ext (+ ext 1))
+  (gimp-image-undo-freeze image)
   (plug-in-mblur 1 image layer 2 (/ (+ (/ imh (/ 1500 ext)) (/ imw (/ 1500 ext))) 2) 0 (/ imw 2) (/ imh 2))
+  (gimp-image-undo-thaw image)
 )
 
 ;fil-int-sov
@@ -802,9 +827,11 @@ vign-exit
 ;СЛОЙ - обрабатываемый слой;
 ;ЦЕЛОЕ - значение высоты изображения;
 ;ЦЕЛОЕ - значение ширины изображения;
+;ЦЕЛОЕ - значение плотности тонирования;
+;ЦЕЛОЕ - значение плотности красной вуали;
 ;Возвращаемые значения:
 ;СЛОЙ - обработанный слой;
-(define (fil-int-sov image layer imh imw)
+(define (fil-int-sov image layer imh imw opc_tone opc_red)
 (define sov-exit)
   (let* (
 	(first (car (gimp-layer-copy layer FALSE)))
@@ -826,8 +853,8 @@ vign-exit
 	(gimp-levels red_mask 0 33 120 1.0 0 255)
 	(gimp-levels red 0 0 255 1.0 20 255)
 	(gimp-invert red_mask)
-	(gimp-layer-set-opacity first 60)
-	(gimp-layer-set-opacity red 65)
+	(gimp-layer-set-opacity first opc_tone)
+	(gimp-layer-set-opacity red opc_red)
 	(set! layer
 	  (car
 	    (gimp-image-merge-down image first 0)
@@ -877,21 +904,27 @@ sov-exit
 ;ЦЕЛОЕ - значение высоты изображения;
 ;ЦЕЛОЕ - значение ширины изображения;
 ;ЦВЕТ - цвет переднего плана;
+;БУЛЕВОЕ - переключатель режима имитации фотобумаги;
 ;Возвращаемые значения:
 ;СЛОЙ - обработанный слой;
-(define (fil-int-sepia image layer imh imw foreground)
+(define (fil-int-sepia image layer imh imw foreground paper_switch)
 (define sepia-exit)
   (let* (
-	(paper (car (gimp-layer-new image imw imh 0 "Photo Paper" 100 0)))
+	(paper 0)
 	)
-	(gimp-image-add-layer image paper -1)
-	(gimp-context-set-foreground '(224 213 184))
-	(gimp-drawable-fill paper 0)
-	(gimp-image-lower-layer image paper)
-	(gimp-layer-set-mode layer 9)
-	(set! layer
-	  (car
-	    (gimp-image-merge-down image layer 0)
+	(if (= paper_switch TRUE)
+	  (begin
+	    (set! paper (car (gimp-layer-new image imw imh 0 "Photo Paper" 100 0)))
+	    (gimp-image-add-layer image paper -1)
+	    (gimp-context-set-foreground '(224 213 184))
+	    (gimp-drawable-fill paper 0)
+	    (gimp-image-lower-layer image paper)
+	    (gimp-layer-set-mode layer 9)
+	    (set! layer
+	      (car
+		(gimp-image-merge-down image layer 0)
+	      )
+	    )
 	  )
 	)
 	(gimp-colorize layer 34 30 0)
@@ -906,9 +939,12 @@ sepia-exit
 ;Входные переменные:
 ;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
 ;СЛОЙ - обрабатываемый слой;
+;ЦЕЛОЕ - значение плотности слоя аффекта;
+;ЦВЕТ - цвет для светлой области;
+;ЦВЕТ - цвет для темно области;
 ;Возвращаемые переменные:
 ;СЛОЙ - ббработанный слой;
-(define (fil-int-duo image layer)
+(define (fil-int-duo image layer opc_affect light_color dark_color)
 (define duo-exit)
   (let* (
 	(affect (car (gimp-layer-copy layer FALSE)))
@@ -930,13 +966,13 @@ sepia-exit
 	  )
 	)
 	(gimp-layer-add-mask light lightmask)
-	(plug-in-colorify 1 image light '(200 175 140))
-	(plug-in-colorify 1 image dark '(80 102 109))
+	(plug-in-colorify 1 image light light_color)
+	(plug-in-colorify 1 image dark dark_color)
 	(gimp-layer-set-mode light 13)
 	(gimp-layer-set-mode dark 13)
 	(gimp-layer-set-mode affect 5)
 	(gimp-hue-saturation light 0 0 0 100)
-	(gimp-layer-set-opacity affect 75)
+	(gimp-layer-set-opacity affect opc_affect)
 	(set! layer (car (gimp-image-merge-down image dark 0)))
 	(set! layer (car (gimp-image-merge-down image affect 0)))
 	(set! layer (car (gimp-image-merge-down image light 0)))
@@ -1026,25 +1062,27 @@ adv-exit
 ;ЦВЕТ - цвет переднего плана;
 ;Возвращаемые значения:
 ;СЛОЙ - обработанный слой;
-(define (fil-int-sulfide image layer imh imw foreground)
+(define (fil-int-sulfide image layer imh imw foreground scale_step grunge_switch)
 (define sulf-exit)
   (let* (
-	(scale_step 2.8)
+	;(scale_step 2.8)
+	(sc_imh (/ imh scale_step))
+	(sc_imw (/ imw scale_step))
 	(scale_layer)
 	(grain_layer)
+	(grunge_layer)
 	(grain_mask)
 	(rel_step (if (> imh imw) (/ imh 1100) (/ imw 1100)))
 	)
 	(set! scale_layer
 	  (car 
-	    (gimp-layer-new image imw imh 0 "Scale layer" 100 0)
+	    (gimp-layer-new image sc_imw sc_imh 0 "Scale layer" 100 0)
 	  )
 	)
 	(gimp-image-add-layer image scale_layer -1)
 	(gimp-context-set-foreground '(128 128 128))
 	(gimp-drawable-fill scale_layer 0)
 	(plug-in-hsv-noise 1 image scale_layer 2 3 0 25)
-	(gimp-context-set-foreground foreground)
 	(gimp-layer-set-mode scale_layer 5)
 	(gimp-brightness-contrast scale_layer 0 75)
 	(set! grain_mask
@@ -1052,12 +1090,46 @@ adv-exit
 	    (gimp-layer-create-mask layer 5)
 	  )
 	)
-	(set! grain_layer (car (gimp-layer-copy scale_layer FALSE)))
+	(set! grain_layer 
+	  (car 
+	    (gimp-layer-new image imw imh 0 "Normal grain" 100 0)
+	  )
+	)
 	(gimp-image-add-layer image grain_layer -1)
-	(gimp-drawable-set-name grain_layer "Normal grain")
-	(gimp-layer-scale-full scale_layer (* imw scale_step) (* imh scale_step) TRUE 2)
+	(gimp-layer-add-mask grain_layer grain_mask)
+	(gimp-curves-spline grain_mask 0 6 #(0 80 128 128 255 80))
+	(gimp-drawable-fill grain_layer 0)
+	(plug-in-hsv-noise 1 image grain_layer 2 3 0 25)
+	(gimp-brightness-contrast grain_layer 0 80)
+	(gimp-layer-set-mode grain_layer 5)
+	(gimp-layer-scale-full scale_layer imw imh FALSE 1)
+	(gimp-brightness-contrast scale_layer 0 35)
 	(gimp-layer-set-opacity scale_layer 45)
 	(gimp-layer-resize-to-image-size scale_layer)
+	(gimp-context-set-foreground foreground)
+
+	(if (= grunge_switch TRUE)
+	  (begin
+	    (set! grunge_layer 
+	      (car 
+		(gimp-layer-new image imw imh 0 "Grunge Overlay" 100 0)
+	      )
+	    )
+	    (gimp-image-add-layer image grunge_layer -1)
+	    (gimp-image-lower-layer image grunge_layer)
+	    (gimp-image-lower-layer image grunge_layer)
+	    (plug-in-plasma 1 image grunge_layer 0 5.0)
+	    (gimp-desaturate grunge_layer)
+	    (gimp-layer-set-mode grunge_layer 5)
+	    (gimp-layer-set-opacity grunge_layer 45)
+	    (set! layer
+	      (car
+		(gimp-image-merge-down image grunge_layer 0)
+	      )
+	    )
+	  )
+	)
+
 	(set! layer
 	  (car
 	    (gimp-image-merge-down image scale_layer 0)
