@@ -1,4 +1,4 @@
-;FIL v1.6 RC1
+;FIL v1.6.0
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -16,14 +16,8 @@
 ;http://www.gnu.org/licenses/gpl-3.0.html
 ;
 ;ЛИПС (Лаборатория имитации пленочных снимков) = FIL;
-;Список задач (ver. 1.6):
-; - переработка API;				(СДЕЛАНО)
-; - оциональный вывод индикации опций;		(СДЕЛАНО)
-; - ввод глобальных переменных ядра;		(СДЕАЛНО)
-; - ввод парадигмы параметров исполнения;	(СДЕЛАНО)
-; - опциональное совмещение слоев и гипервизор	(ОТБРОШЕНО)
-; - режим "Гранж" в процесс "Сульфид"		(СДЕЛАНО)
-; - реализовать поддержку стека отмены;		(ОТБРОШЕНО)
+;Список задач (ver. 1.6.1):
+; - портирование различных процессов;
 ;История версий:
 ;===============================================================================================================
 ;ver. 0.3 (19 декабря 2009)
@@ -76,6 +70,13 @@
 ;ver 1.5.1 (5 июня 2010)
 ; - конвеерное исполнение ядра FIL;
 ; - новый процесс зернистости "Сульфид"
+;===============================================================================================================
+;ver 1.6.0 (9 июня 2010)
+; - модернизация ядра скрипта;
+; - опциональный вывод опций в имя конечного слоя;
+; - запуск процессов с параметрами;
+; - фильтр "Гранж" в составе процесса зернистости "Сульфид".
+; - статус стабильного релиза;
 ;===============================================================================================================
 ;Процедуры:			Статус		Ревизия		Спецификации
 ;==========================================ПРОЦЕДУРЫ ЯДРА=======================================================
@@ -184,7 +185,7 @@
     FALSE			;Стадия пре-процессов (нерегистрируемая) обозначается как FALSE;
     fk-clr-stage		;Стадия цветовых процессов;
     fk-grain-stage		;Стадия процессов зернистости;
-    )
+  )
 )
 
 ;Счетчик стадий для ядра
@@ -256,7 +257,7 @@
 	(fs_xps_str "Эксп. ")					;метка индикации корректировки экспозиции
 	(fs_vign_str "(В) ")					;приставка для отображения итогового слоя с виньетированием
 	(fs_blur_str "Разм. x")					;приставка для отображения итогового слоя с размытием
-	(fs_default_str "Результат обработки ЛИПС")		;имя конечного слоя без индикации переменных
+	(fs_default_str "Результат обработки ЛИПС 1.6.0")	;имя конечного слоя без индикации переменных
 	)
 
 	;Секция активации исполнения пре-процессов
@@ -456,7 +457,7 @@ stage-handle
   (list
   "Непочатов Станислав"
   "GPLv3"
-  "Июнь 2010"
+  "9 Июня 2010"
   )
 )
 
@@ -482,7 +483,7 @@ stage-handle
   (append
     (list
     "fil-ng-core"
-    _"<Image>/Filters/RSS Devel/_ЛИПС 1.6 RC1"
+    _"<Image>/Filters/RSS/_ЛИПС 1.6"
     "Лаборатория имитации пленочных снимков"
     )
     fil-credits
@@ -604,7 +605,7 @@ stage-handle
 
 		;Обработка строковых переменных и получение выходящего пути
 		(set! file (substring filename (string-length fb_dir_in) (- (string-length filename) 4 )))
-		(set! target_out (string-append fb_dir_out "/" file "_FIL." out-ext))
+		(set! target_out (string-append fb_dir_out "/" file "_ЛИПС." out-ext))
 
 		;Сохранение файла
 		(cond
@@ -631,7 +632,7 @@ stage-handle
   (append
     (list
     "fil-ng-batch"
-    _"<Image>/Filters/RSS Devel/ЛИПС 1.6 RC1 _Конвейер"
+    _"<Image>/Filters/RSS/ЛИПС 1.6 _Конвейер"
     "Конвейерное исполнение ЛИПС"
     )
     fil-credits
@@ -680,13 +681,13 @@ stage-handle
 	      )
 	    )
 	    (gimp-floating-sel-to-layer exit-layer)
-	    (gimp-drawable-set-name exit-layer "Source = Visisble")
+	    (gimp-drawable-set-name exit-layer "Источник = Видимое")
 	    (gimp-image-raise-layer-to-top image exit-layer)
 	  )
 	  (begin
 	    (set! exit-layer (car (gimp-layer-copy active FALSE)))
 	    (gimp-image-add-layer image exit-layer -1)
-	    (gimp-drawable-set-name exit-layer "Source = Copy")
+	    (gimp-drawable-set-name exit-layer "Источник = Копия")
 	  )
 	)
 	(set! exit exit-layer)
@@ -740,7 +741,7 @@ exit
 	(off_y)
 	(p_big)
 	(d_diff)
-	(vign (car (gimp-layer-new image imw imh 1 "Vignette" 100 0)))
+	(vign (car (gimp-layer-new image imw imh 1 "Виньетирование" 100 0)))
 	(norm_vign)
 	)
 	(if (> p_imh p_imw)
@@ -784,7 +785,7 @@ exit
 	(gimp-context-set-foreground fore)
 	(set! norm_vign (car (gimp-layer-copy vign TRUE)))
 	(gimp-image-add-layer image norm_vign -1)
-	(gimp-drawable-set-name norm_vign "Normal Vignette")
+	(gimp-drawable-set-name norm_vign "Нормальное виньетирование")
 	(gimp-layer-set-mode vign 5)
 	(gimp-layer-set-mode norm_vign 3)
 	(gimp-layer-set-opacity vign vign_opc)
@@ -835,13 +836,13 @@ vign-exit
 (define sov-exit)
   (let* (
 	(first (car (gimp-layer-copy layer FALSE)))
-	(red (car (gimp-layer-new image imw imh 0 "Mask tone" 100 0)))
+	(red (car (gimp-layer-new image imw imh 0 "Тон маски" 100 0)))
 	(red_mask)
 	)
 	(gimp-hue-saturation layer 0 5 0 -30)
 	(gimp-image-add-layer image first -1)
 	(gimp-image-add-layer image red -1)
-	(gimp-drawable-set-name first "Global tone")
+	(gimp-drawable-set-name first "Общий тон")
 	(set! red_mask
 	  (car
 	    (gimp-layer-create-mask layer 5)
@@ -866,7 +867,7 @@ vign-exit
 	  )
 	)
 	(gimp-hue-saturation layer 0 0 0 30)
-	(gimp-drawable-set-name layer "SOV")
+	(gimp-drawable-set-name layer "СОВ")
 	(set! sov-exit layer)
   )
 sov-exit
@@ -879,7 +880,7 @@ sov-exit
 ;СЛОЙ - обрабатываемый слой;
 (define (fil-int-gray image layer)
   (plug-in-colors-channel-mixer 1 image layer TRUE 0 0.3 0.6 0 0 0 0 0 0)
-  (gimp-drawable-set-name layer "B/W")
+  (gimp-drawable-set-name layer "Ч/Б")
 )
 
 ;fil-int-lomo
@@ -893,7 +894,7 @@ sov-exit
   (gimp-curves-spline layer 1 10 #(0 0 80 84 149 192 191 248 255 255))
   (gimp-curves-spline layer 2 8 #(0 0 70 81 159 220 255 255))
   (gimp-curves-spline layer 3 4 #(0 27 255 213))
-  (gimp-drawable-set-name layer "Lomo")
+  (gimp-drawable-set-name layer "Ломо")
 )
 
 ;fil-int-sepia
@@ -914,7 +915,7 @@ sov-exit
 	)
 	(if (= paper_switch TRUE)
 	  (begin
-	    (set! paper (car (gimp-layer-new image imw imh 0 "Photo Paper" 100 0)))
+	    (set! paper (car (gimp-layer-new image imw imh 0 "Фотобумага" 100 0)))
 	    (gimp-image-add-layer image paper -1)
 	    (gimp-context-set-foreground '(224 213 184))
 	    (gimp-drawable-fill paper 0)
@@ -928,7 +929,7 @@ sov-exit
 	  )
 	)
 	(gimp-colorize layer 34 30 0)
-	(gimp-drawable-set-name layer "Sepia")
+	(gimp-drawable-set-name layer "Сепия")
 	(set! sepia-exit layer)
   )
 sepia-exit
@@ -989,7 +990,7 @@ duo-exit
 ;СЛОЙ - обрабатываемый слой;
 (define (fil-int-simplegrain image clr_res)
   (plug-in-hsv-noise 1 image clr_res 2 3 0 25)
-  (gimp-drawable-set-name clr_res "Simple Grain")
+  (gimp-drawable-set-name clr_res "Простая зернистость")
 )
 
 ;fil-int-adv_grain
@@ -1006,7 +1007,7 @@ duo-exit
 (define (fil-int-adv_grain image clr_res imh imw foreground boost)
 (define adv-exit)
   (let* (
-	(name "Grain+")
+	(name "Зерно+")
 	(grain_boost)
 	(rel_step (if (> imh imw) (/ imh 800) (/ imw 800)))
 	(grain)
@@ -1014,7 +1015,7 @@ duo-exit
 	)
 	(set! grain 
 	  (car 
-	    (gimp-layer-new image imw imh 0 "Grain+" 100 0)
+	    (gimp-layer-new image imw imh 0 "Зерно+" 100 0)
 	  )
 	)
 	(gimp-image-add-layer image grain -1)
@@ -1037,8 +1038,8 @@ duo-exit
 	  (begin
 	    (set! grain_boost (car (gimp-layer-copy grain FALSE)))
 	    (gimp-image-add-layer image grain_boost -1)
-	    (gimp-drawable-set-name grain_boost "Boost")
-	    (set! name (string-append name " boosted"))
+	    (gimp-drawable-set-name grain_boost "усиление")
+	    (set! name (string-append name " усил."))
 	  )
 	)
 	(set! clr_res (car (gimp-image-merge-down image grain 0)))
@@ -1060,6 +1061,8 @@ adv-exit
 ;ЦЕЛОЕ - значение высоты изображения;
 ;ЦЕЛОЕ - значение ширины изображения;
 ;ЦВЕТ - цвет переднего плана;
+;ЧИСЛО - значение увеличение масштаба зерна;
+;БУЛЕВОЕ - переключатель гранж-режима;
 ;Возвращаемые значения:
 ;СЛОЙ - обработанный слой;
 (define (fil-int-sulfide image layer imh imw foreground scale_step grunge_switch)
@@ -1076,7 +1079,7 @@ adv-exit
 	)
 	(set! scale_layer
 	  (car 
-	    (gimp-layer-new image sc_imw sc_imh 0 "Scale layer" 100 0)
+	    (gimp-layer-new image sc_imw sc_imh 0 "Слой масштаба" 100 0)
 	  )
 	)
 	(gimp-image-add-layer image scale_layer -1)
@@ -1092,7 +1095,7 @@ adv-exit
 	)
 	(set! grain_layer 
 	  (car 
-	    (gimp-layer-new image imw imh 0 "Normal grain" 100 0)
+	    (gimp-layer-new image imw imh 0 "Нормальное зерно" 100 0)
 	  )
 	)
 	(gimp-image-add-layer image grain_layer -1)
@@ -1112,7 +1115,7 @@ adv-exit
 	  (begin
 	    (set! grunge_layer 
 	      (car 
-		(gimp-layer-new image imw imh 0 "Grunge Overlay" 100 0)
+		(gimp-layer-new image imw imh 0 "Гранж" 100 0)
 	      )
 	    )
 	    (gimp-image-add-layer image grunge_layer -1)
