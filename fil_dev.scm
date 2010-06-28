@@ -15,267 +15,267 @@
 ;Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 ;http://www.gnu.org/licenses/gpl-3.0.html
 ;
-;ЛИПС (Лаборатория имитации пленочных снимков) = FIL;
-;Список задач (ver. 1.6.1):
-; - портирование различных процессов;
-;История версий:
+;FIL = Film Imitation Lab;
+;TO-DO (ver. 1.6.1):
+; - port some processes;
+;Version history:
 ;===============================================================================================================
-;ver. 0.3 (19 декабря 2009)
-; - рабочая сборка скрипта с начальным набором процедур.
-; - определение спецификаций к модулям версии ядра ЛИПС 0.3.
+;ver. 0.3 (December 19 2009)
+; - working script with small amount of procedures.
+; - FIL 0.3 specifications definition.
 ;===============================================================================================================
-;ver. 0.5 (22 декабря 2009)
-; - раздельное выполнение цветового и зернового процесса.
-; - вывод имени учвствовавших в обработке процессов в имя итогового слоя.
-; - модификация спецификаций.
-; - устанвка классов расширений.
+;ver. 0.5 (December 22 2009)
+; - separate execution of color and grain processes.
+; - option indicaion output into final layer's name.
+; - specs modification.
+; - module classes introduction.
 ;===============================================================================================================
-;ver 0.8 (24 декабря 2009)
-; - смена ядра на модифицированное (NG).
-; - виньетирование как пре-процесс.
-; - усиление зернистости (нерекомендуется при использовании Простой Зернистости).
-; - работа с видимым.
-; - новый процесс зернистости (Зерно+).
+;ver 0.8 (24 December 2009)
+; - new core (NG).
+; - vignette as pre-process.
+; - grian amplification as part of core (not recomended with Simple Grian process).
+; - work woth visible.
+; - new grain process (Grain+).
 ;===============================================================================================================
-;ver. 1.0 (11 января 2010)
-; - существенные модификации ядра для независимого запуска обьектов ядра.
-; - исправления множества ошибок.
-; - модернизация цветовых и других процедур.
-; - реализация усиления зернистости на уровне процесса зернистоисти.
-; - реализация эффекта плохого объектива.
-; - модернизирован интерфейс.
-; - реализация радиуса виньетирования (в сторону увеличения).
+;ver. 1.0 (January 11 2010)
+; - core independ process execution enhancement.
+; - bugfixes.
+; - color process and etc modification.
+; - grain amplification in grain process.
+; - border blur (like bad lenses).
+; - interface modification.
+; - vignette radius (may be increased).
 ;===============================================================================================================
-;ver. 1.0r1 (17 февраля 2010)
-; - модернизирован процесс виньетирования;
-; - добавлена поддержка мягкости виньетирования;
-; - модернизация процедур получения источника для обработки;
+;ver. 1.0r1 (February 17 2010)
+; - vignette process modification;
+; - vignette softness support;
+; - fil-source-handle improved;
 ;===============================================================================================================
-;ver. 1.0r2 (24 марта 2010)
-; - мелкие исправления в сепии;
-; - относительный значения размытия в Зерно+;
-; - значительная оптимизация процесса Зерно+;
+;ver. 1.0r2 (March 24 2010)
+; - some fixes in sepia process;
+; - relative blur in Grian+;
+; - significant optimization in Grain+ process;
 ;===============================================================================================================
-;ver 1.0r3 (26 марта 2010)
-; - первый публичный релиз;
+;ver 1.0r3 (March 26 2010)
+; - first public release;
 ;===============================================================================================================
-;ver 1.5.0 (3 мая 2010)
-; - полная переработка всех стадий ядра;
-; - новые спецификации;
-; - регистрирующие процедуры для процессов цветокорректировки и зернистости;
-; - классификация всех переменных ядра;
-; - добавлен цветовой процесс "Двутон" (базируется на Split Studio 3);
-; - добавлен пре-процесс коррекции экспозиции;
+;ver 1.5.0 (May 3 2010)
+; - total revision of all core stages;
+; - new specs;
+; - register procedures for color and grain processes;
+; - whole core variables classification;
+; - new color process Duotone (based on Split Studio 3);
+; - exposure correction as new pre-process;
 ;===============================================================================================================
-;ver 1.5.1 (5 июня 2010)
-; - конвеерное исполнение ядра FIL;
-; - новый процесс зернистости "Сульфид"
+;ver 1.5.1 (June 5 2010)
+; - FIL core batch execution;
+; - new grain process "Sulfide"
 ;===============================================================================================================
 ;ver 1.6.0 (9 июня 2010)
-; - модернизация ядра скрипта;
-; - опциональный вывод опций в имя конечного слоя;
-; - запуск процессов с параметрами;
-; - фильтр "Гранж" в составе процесса зернистости "Сульфид".
-; - статус стабильного релиза;
+; - script's core modification;
+; - optional option output;
+; - launching processes with custome options;
+; - Grunge filter included in Sulfide process.
+; - stable release status;
 ;===============================================================================================================
-;Процедуры:			Статус		Ревизия		Спецификации
-;==========================================ПРОЦЕДУРЫ ЯДРА=======================================================
-;fil-ng-core			стаб		---		1.6
-;fil-stage-handle		стаб		---		---
-;fil-source-handle		стаб		---		---
-;fil-ng-batch			стаб		---		---
-;============================================ПРЕПРОЦЕССЫ========================================================
-;fil-pre-xps			стаб		r0		1.6
-;fil-pre-vignette		стаб		r3		1.6
-;fil-pre-badblur		стаб		r1		1.6
-;=========================================ЦВЕТОВЫЕ ПРОЦЕССЫ=====================================================
-;fil-int-sov			стаб		r5		1.6
-;fil-int-gray			стаб		r2		1.6
-;fil-int-lomo			стаб		r1		1.6
-;fil-int-sepia			стаб		r4		1.6
-;fil-int-duo			стаб		r1		1.6
-;=======================================ПРОЦЕССЫ ЗЕРНИСТОСТИ====================================================
-;fil-int-simplegrain		стаб		r2		1.6
-;fil-int-grain_plus		стаб		r4		1.6
-;fil-int-sulfide		стаб		r2		1.6
-;=======================================Классы модуей ЛИПС======================================================
-; -pre - пре-процесс.
-; -int - внутрення процедура (в файле основного скрипта).
-; -ext - внешняя процедура (вне основного скрипта).
-; -dep - внешняя процедура требующая внешних плагинов.
-;================================Набор требований к процессам ЛИПС 1.6:=========================================
-; * процессы не могут вызывать процессы ЛИПС от своего имени, но могут обращатся к дополнительным процедурам.
-; * процессы не должны изменять размеры изорбражения и его параметры (глубина цвета).
-; * процессы могут брать параметры изображения непосредственно из ядра (переменные с префиксом fc).
-; * регистрируемые стадии должны быть определены собственной переменной и включены в состав fk-stages-list.
-; * процессы должны быть зарегестрированы в переменных fk-clr-stage и fk-grain-stage для работоспособности.
-; * процессы должны по окончанию работы возвращать итоговый слой ядру (если процесс оперирует слоями).
-; * процессы могут иметь специальные параметры запуска тем самым реализуя запуск с определенными параметрами.
-;========================================Стадии ядра ЛИПС 1.6===================================================
-;Стадия			Регистрируемая			Номер стадии (stage_id)
-;pre-stage		НЕТ				0
-;fk-clr-stage		ДА				1
-;fk-grain-stage		ДА				2
+;Procedures:			Status		Revision	Specs version
+;==========================================CORE PROCEDURES======================================================
+;fil-ng-core			stable		---		1.6
+;fil-stage-handle		stable		---		---
+;fil-source-handle		stable		---		---
+;fil-ng-batch			stable		---		---
+;===========================================PRE-PROCESSES=======================================================
+;fil-pre-xps			stable		r0		1.6
+;fil-pre-vignette		stable		r3		1.6
+;fil-pre-badblur		stable		r1		1.6
+;==========================================COLOR PROCESSES======================================================
+;fil-int-sov			stable		r5		1.6
+;fil-int-gray			stable		r2		1.6
+;fil-int-lomo			stable		r1		1.6
+;fil-int-sepia			stable		r4		1.6
+;fil-int-duo			stable		r1		1.6
+;==========================================GRAIN PROCESSES======================================================
+;fil-int-simplegrain		stable		r2		1.6
+;fil-int-grain_plus		stable		r4		1.6
+;fil-int-sulfide		stable		r2		1.6
+;=====================================FIL module classification=================================================
+; -pre - pre-process.
+; -int - internal procedure (locate in this file).
+; -ext - externel procedure (somewhere out of this file).
+; -dep - external procedure which depend on binary plug-ins.
+;=================================FIL 1.6 modules requirements list:============================================
+; * processes can't call other FIL processes from itself but it can call private additional procedures.
+; * processes shouldn't change image dimensions or it's color depth.
+; * procceses able to take some image option from FIL core by itself (variables with prefix fc).
+; * register stage should be defined by it's variable and should be included in fk-stages-list.
+; * processes (except pre-proccesses) should be register in fk-clr-stage and fk-grain-stage variables.
+; * processes should return final layer to core (if processes use many layers).
+; * processes could have special launch options.
+;========================================FIL 1.6 core stages====================================================
+;Stage			Register?			Stage number (stage_id)
+;pre-stage		NO				0
+;fk-clr-stage		YES				1
+;fk-grain-stage		YES				2
 ;===============================================================================================================
 
-;Глобальные переменные ядра
+;Core global variables
 
-;Регистрация процедур стадии ядра с stage_id=1 (стадия цветовых процессов);
+;Core stage register with stage_id=1 (color stage);
 (define fk-clr-stage)
 (set! fk-clr-stage
   (list
     
-    ;Процесс "СОВ: обычный" с proc_id=0
-    (list "СОВ: обычный" 	(quote (set! fp_clr_layer (fil-int-sov fm_image fp_clr_layer fc_imh fc_imw 60 65))))
+    ;Process "SOV: normal" with proc_id=0
+    (list "SOV: normal" 		(quote (set! fp_clr_layer (fil-int-sov fm_image fp_clr_layer fc_imh fc_imw 60 65))))
 
-    ;Процесс "СОВ: легк." с proc_id=1
-    (list "СОВ: легкий" 	(quote (set! fp_clr_layer (fil-int-sov fm_image fp_clr_layer fc_imh fc_imw 30 35))))
+    ;Process "SOV: light" with proc_id=1
+    (list "SOV: light"			(quote (set! fp_clr_layer (fil-int-sov fm_image fp_clr_layer fc_imh fc_imw 30 35))))
 
-    ;Процесс "Ч/Б" с proc_id=2
-    (list "Ч/Б" 		(quote (fil-int-gray fm_image fp_clr_layer)))
+    ;Process "B/W" with proc_id=2
+    (list "B/W" 			(quote (fil-int-gray fm_image fp_clr_layer)))
 
-    ;Процесс "Ломо" с proc_id=3
-    (list "Ломо" 		(quote (fil-int-lomo fm_image fp_clr_layer)))
+    ;Process "Lomo" with proc_id=3
+    (list "Lomo" 			(quote (fil-int-lomo fm_image fp_clr_layer)))
 
-    ;Процесс "Сепия:  обычная" proc_id=4
-    (list "Сепия: обычная" 	(quote (set! fp_clr_layer (fil-int-sepia fm_image fp_clr_layer fc_imh fc_imw fc_fore FALSE))))
+    ;Process "Sepia: normal" with proc_id=4
+    (list "Sepia: normal" 		(quote (set! fp_clr_layer (fil-int-sepia fm_image fp_clr_layer fc_imh fc_imw fc_fore FALSE))))
 
-    ;Процесс "Сепия: с имитацией" proc_id=5
-    (list "Сепия: с имитацией"	(quote (set! fp_clr_layer (fil-int-sepia fm_image fp_clr_layer fc_imh fc_imw fc_fore TRUE))))
+    ;Process "Sepia: with imitation" with proc_id=5
+    (list "Sepia: with imitaion"	(quote (set! fp_clr_layer (fil-int-sepia fm_image fp_clr_layer fc_imh fc_imw fc_fore TRUE))))
 
-    ;Процесс "Двутон: обычный" proc_id=6
-    (list "Двутон: обычный" 	(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 75 '(200 175 140) '(80 102 109)))))
+    ;Process "Duotone: normal" with proc_id=6
+    (list "Duotone: normal" 		(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 75 '(200 175 140) '(80 102 109)))))
 
-    ;Процесс "Двутон: низ. контраст" proc_id=7
-    (list "Двутон: мягкий" 	(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 30 '(200 175 140) '(80 102 109)))))
+    ;Process "Duotone: soft" with proc_id=7
+    (list "Duotone: soft" 		(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 30 '(200 175 140) '(80 102 109)))))
 
-    ;Процесс "Двутон: низ. контраст" proc_id=8
-    (list "Двутон: свои цвета" 	(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 55 fc_fore fc_back))))
+    ;Process "Duotone: colors" with proc_id=8
+    (list "Duotone: user colors"	(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 55 fc_fore fc_back))))
   )
 )
 
-;Регистрация процедур стадии ядра с stage_id=2 (стадия процессов зернистости);
+;Core stage register with stage_id=2 (grain stage);
 (define fk-grain-stage)
 (set! fk-grain-stage
   (list
 
-    ;Процесс "Простая зернистость" с proc_id=0
-    (list "Простая зернистость"	(quote (fil-int-simplegrain fm_image fp_grain_layer)))
+    ;Process "Simple grain" with proc_id=0
+    (list "Simple grain"		(quote (fil-int-simplegrain fm_image fp_grain_layer)))
 
-    ;Процесс "Зерно+" с proc_id=1
-    (list "Зерно+: обыч." 	(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore FALSE))))
+    ;Process "Grain+: normal" with proc_id=1
+    (list "Grain+: normal" 		(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore FALSE))))
 
-    ;Процесс "Зерно+ усиленное" с proc_id=2
-    (list "Зерно+: усил." 	(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore TRUE))))
+    ;Process "Grain+: amplified" with proc_id=2
+    (list "Grain+: amplified" 		(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore TRUE))))
 
-    ;Процесс "Сульфид: обычный" с proc_id=3
-    (list "Сульфид: обычный"	(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 2.5 FALSE))))
+    ;Process "Sulfide: normal" with proc_id=3
+    (list "Sulfide: normal"		(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 2.5 FALSE))))
 
-    ;Процесс "Сульфид: крупный" с proc_id=4
-    (list "Сульфид: крупный"	(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 3.1 FALSE))))
+    ;Process "Sulfide: large scale" with proc_id=4
+    (list "Sulfide: large scale"	(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 3.1 FALSE))))
 
-    ;Процесс "Сульфид: обычный" с proc_id=5
-    (list "Сульфид: гранж"	(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 2.7 TRUE))))
+    ;Process "Sulfide: grunge" with proc_id=5
+    (list "Sulfide: grunge"		(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 2.7 TRUE))))
   )
 )
 
-;Единая переменная листа регистрируемых стадий процессов
+;Global stage list
 (define fk-stages-list 
   (list 
-    FALSE			;Стадия пре-процессов (нерегистрируемая) обозначается как FALSE;
-    fk-clr-stage		;Стадия цветовых процессов;
-    fk-grain-stage		;Стадия процессов зернистости;
+    FALSE			;Pre-process stage marked as FALSE (not register stage)
+    fk-clr-stage		;Color process stage;
+    fk-grain-stage		;Grain process stage;
   )
 )
 
-;Счетчик стадий для ядра
+;Core stage counter
 (define fk-stage-counter 0)
 
-;Процедура ядра FIL
-(define (fil-ng-core		;имя процедуры;
+;FIL core procedure
+(define (fil-ng-core		;procedure name;
 
-	;Главные атрибуты запуска
-	fm_image		;перменная изображения;
+	;Launching main atributes
+	fm_image		;image variable;
 
-	;Управление цветовыми процессами
-	fm_clr_flag		;переключатель исполнения цветового процесса;
-	fm_clr_id		;номер цветового процесса;
+	;Color stage control
+	fm_clr_flag		;color proceess execution switch;
+	fm_clr_id		;color process number;
 
-	;Управление процессами зернистости
-	fm_grain_flag		;переключатель исполнения процесса зернистости;
-	fm_grain_id		;номер процесса зернистости;
+	;Grain stage control
+	fm_grain_flag		;grain proceess execution switch;
+	fm_grain_id		;grain process number;
 
-	;Управление пре-процессами
-	fm_pre_vign_flag	;переключатель активации виньетирования;
-	fm_pre_vign_rad		;радиус виньетирования в процентах;
-	fm_pre_vign_soft	;мягкость виньетирования;
-	fm_pre_vign_opc		;плотность виньетирования;
-	fm_pre_blur_step	;регулятор размытия;
-	fm_pre_xps_control	;регулятор корректировки экспозиции;
+	;Pre-process control
+	fm_pre_vign_flag	;vignette activation switch;
+	fm_pre_vign_rad		;vignette radius in percents;
+	fm_pre_vign_soft	;vignette softness;
+	fm_pre_vign_opc		;vingette opacity;
+	fm_pre_blur_step	;border blur control;
+	fm_pre_xps_control	;exposure correction control;
 
-	;Дополнительные параметры
-	fm_misc_logout		;переключатель опционального вывода опций;
-	fm_misc_visible		;переключатель использования видимого;
+	;Additional options
+	fm_misc_logout		;option output swtitch;
+	fm_misc_visible		;visible switch;
 	)
 
-  ;Старт ядра
+  ;Core start
   (gimp-context-push)
   (gimp-image-undo-disable fm_image)
 
-  ;Декларация переменных;
+  ;Variables declaration;
   (let* (
 
-	;Переменные для передачи процессам
-	(fc_imh (car (gimp-image-height fm_image)))		;системная переменная высоты изображения
-	(fc_imw (car (gimp-image-width fm_image)))		;системная переменная ширины изображения
-	(fc_fore (car (gimp-context-get-foreground)))		;системная переменная цвета переднего плана
-	(fc_back (car (gimp-context-get-background)))		;системная переменная цвета заднего плана
+	;System variables
+	(fc_imh (car (gimp-image-height fm_image)))		;image height system variable
+	(fc_imw (car (gimp-image-width fm_image)))		;image width system variable
+	(fc_fore (car (gimp-context-get-foreground)))		;foreground color system variable
+	(fc_back (car (gimp-context-get-background)))		;background color system variable
 
-	;Управления стадиями
-	(fl_pre_flag FALSE)					;флаг исполнения пре-процессов
+	;Stages control
+	(fl_pre_flag FALSE)					;pre-stage execution flag
 
-	;Результирующие переменные полученные от процессов регистрации
-	(fx_clr_list)						;Лист с переменными после исполнения fil-clr-handle
-	(fx_clr_exp)						;Выражение для исполнения стадии цветвого процессами
-	(fx_grain_list)						;Лист с переменными после исполнения fil-grain-handle
-	(fx_grain_exp)						;Выражение для исполнения стадии процесса зернистости
+	;Result variables recieved from stage handler
+	(fx_clr_list)						;List of variables recived from fil-stage-handle while color stage
+	(fx_clr_exp)						;Color stage execution code block
+	(fx_grain_list)						;List of variables recived from fil-stage-handle while grain stage
+	(fx_grain_exp)						;grain stage execution code block
 
 	;Слои взаимодействия с процессами
-	(fp_pre_layer)						;единый слой для пре-стадии
-	(fp_clr_layer)						;единый слой для цветовых процессов
-	(fp_grain_layer)					;единый слой для процессов зернистости
+	(fp_pre_layer)						;pre-stage layer
+	(fp_clr_layer)						;color stage layer
+	(fp_grain_layer)					;grain stage layer
 
-	;Префиксы индикации опций
-	(fs_pref_pre "-п ")					;префикс для обозначения обработки пре-процессами
-	(fs_pref_clr "-ц ")					;префикс для обозначения обработки цветовым процессом
-	(fs_pref_grain "-з ")					;префикс для обозначения обработки процессом зернистости
+	;Option indication string prefixes
+	(fs_pref_pre "-p ")					;pre-stage option prefix
+	(fs_pref_clr "-c ")					;color stage option prefix
+	(fs_pref_grain "-g ")					;grain stage option prefix
 
-	;Вспомогательные строковые переменные
-	(fs_clr_str)						;имя результирующего цветового слоя
-	(fs_grain_str)						;имя результирующего слоя зернистости
-	(fs_res_str "")						;имя итогового слоя
-	(fs_xps_str "Эксп. ")					;метка индикации корректировки экспозиции
-	(fs_vign_str "(В) ")					;приставка для отображения итогового слоя с виньетированием
-	(fs_blur_str "Разм. x")					;приставка для отображения итогового слоя с размытием
-	(fs_default_str "Результат обработки ЛИПС 1.6.0")	;имя конечного слоя без индикации переменных
+	;Additional string variables
+	(fs_clr_str)						;color stage layer name
+	(fs_grain_str)						;grain stage layer name
+	(fs_res_str "")						;final layer name
+	(fs_xps_str "Exp. ")					;exposure correction string mark
+	(fs_vign_str "(V) ")					;vignette string mark
+	(fs_blur_str "Scale x")					;border blur (bad lenses) string mark
+	(fs_default_str "FIL 1.6.0 processing result")		;final layer default string
 	)
 
-	;Секция активации исполнения пре-процессов
+	;Pre-stage activation section
 	(cond
 	  ((> fm_pre_blur_step 0) (set! fl_pre_flag TRUE))
 	  ((and (= fm_pre_vign_flag TRUE) (> fm_pre_vign_opc 0)) (set! fl_pre_flag TRUE))
 	  ((not (= fm_pre_xps_control 0)) (set! fl_pre_flag TRUE))
 	)
 
-	;Инициализация секции пре-процессов
+	;Pre-stage initalization
 	(if (= fl_pre_flag TRUE)
 	  (begin
 
-	    ;Копирование слоя
+	    ;Copying layer
 	    (set! fp_pre_layer (fil-source-handle fm_image fm_misc_visible))
 	    (set! fs_res_str (string-append fs_res_str fs_pref_pre))
 
-	    ;Запуск корректировки экспозиции
+	    ;Exposure correction launching
 	    (if (not (= fm_pre_xps_control 0))
 	      (begin
 		(fil-pre-xps fm_image fp_pre_layer fm_pre_xps_control)
@@ -287,7 +287,7 @@
 	      )
 	    )
 
-	    ;Запуск виньетирования
+	    ;Vignette launching
 	    (if (= fm_pre_vign_flag TRUE)
 	      (if (> fm_pre_vign_opc 0)
 		(begin
@@ -297,7 +297,7 @@
 	      )
 	    )
 	    
-	    ;Запуск размытия
+	    ;Blur launching
 	    (if (> fm_pre_blur_step 0)
 	      (begin
 		(fil-pre-badblur fm_image fp_pre_layer fc_imh fc_imw fm_pre_blur_step)
@@ -312,28 +312,28 @@
 	  )
 	)
 
-	;Передача слоя между стадиями и корректировка счетчика стадий
+	;Layer transfering between stages and stage counter correction
 	(set! fp_clr_layer fp_pre_layer)
 	(set! fk-stage-counter (+ fk-stage-counter 1))
 
-	;Запуск цветового процесса
+	;Color stage initalization
 	(if (= fm_clr_flag TRUE)
 	  (begin
 
-	    ;Проверка передаваемого слоя
+	    ;Recieved layer checking
 	    (if (null? fp_clr_layer)
 	      (set! fp_clr_layer (fil-source-handle fm_image fm_misc_visible))
 	    )
 
-	    ;Инициализация листа процессов
+	    ;Process list initalization
 	    (set! fx_clr_list (fil-stage-handle FALSE fk-stage-counter fm_clr_id))
 	    (set! fs_clr_str (car fx_clr_list))
 	    (set! fx_clr_exp (cadr fx_clr_list))
 
-	    ;Запуск исполнения процесса
+	    ;Color process execution
 	    (eval fx_clr_exp)
 
-	    ;Захват готового слоя и его имени
+	    ;String modification and layer renaming
 	    (set! fs_res_str (string-append fs_res_str fs_pref_clr fs_clr_str " "))
 	    (if (= fm_misc_logout TRUE)
 	      (gimp-drawable-set-name fp_clr_layer fs_res_str)
@@ -342,28 +342,28 @@
 	  )
 	)
 
-	;Передача слоя между стадиями и корректировка счетчика стадий
+	;Layer transfering between stages and stage counter correction
 	(set! fp_grain_layer fp_clr_layer)
 	(set! fk-stage-counter (+ fk-stage-counter 1))
 
-	;Запуск процесса генерации зерна
+	;Grain stage initalization
 	(if (= fm_grain_flag TRUE)
 	  (begin
 
-	    ;Проверка передаваемого слоя
+	    ;Recieved layer checking
 	    (if (null? fp_grain_layer)
 	      (set! fp_grain_layer (fil-source-handle fm_image fm_misc_visible))
 	    )
 
-	    ;Инициализация листа процессов зернистости
+	    ;Process list initalization
 	    (set! fx_grain_list (fil-stage-handle FALSE fk-stage-counter fm_grain_id))
 	    (set! fs_grain_str (car fx_grain_list))
 	    (set! fx_grain_exp (cadr fx_grain_list))
 
-	    ;Запуск исполнения процесса
+	    ;Grain process execution
 	    (eval fx_grain_exp)
 
-	    ;Завершение сборки имени итогового слоя
+	    ;String modification and layer renaming
 	    (set! fs_res_str (string-append fs_res_str fs_pref_grain fs_grain_str))
 	    (if (= fm_misc_logout TRUE)
 	      (gimp-drawable-set-name fp_grain_layer fs_res_str)
@@ -372,33 +372,33 @@
 	  )
 	)
 
-	;Возвращение исходного цвета переднего плана
+	;Returning original foreground and background colors
 	(gimp-context-set-foreground fc_fore)
 	(gimp-context-set-background fc_back)
 	(gimp-displays-flush)
   )
 
-  ;Обнуление счетчика стадий
+  ;Stage counter reset
   (set! fk-stage-counter 0)
 
-  ;Завершение исполнения
+  ;End of execution
   (gimp-image-undo-enable fm_image)
   (gimp-context-pop)
 )
 
 ;fil-stage-handle
-;МОДУЛЬ ЯДРА
-;Входные переменные:
-;БУЛЕВОЕ - TRUE если требуется возвратить лист процессов / FALSE для возвращения лист с переменными запуска;
-;ЦЕЛОЕ - номер стадии ядра (обязательный параметр);
-;ЦЕЛОЕ - номер выбранного процесса (занулить если нужно возвратить список);
-;Возвращаемые значения:
-;ЛИСТ - лист с текстовыми названиями процессов / лист с именем процесса и блоком кода;
+;CORE MODULE
+;Input variables:
+;BOOLEAN - TRUE returning name list of specified stage / FALSE returning list with execution variables;
+;INTEGER - core stage number (required option);
+;INTEGER - selected process number (zero if need to return list of process);
+;Returning variables:
+;LIST - list with strings of the processes names / list with process name and with block of code;
 (define (fil-stage-handle param stage_id proc_id)
 (define stage-handle)
 (let* (
-      (stage_error (string-append "ЛИПС не нашел стадию с указанным номером:\nstage_id=" (number->string stage_id)))
-      (proc_error (string-append "ЛИПС не нашел процесс с указанным номером:\nstage_id=" (number->string stage_id) "\nproc_id=" (number->string proc_id)))
+      (stage_error (string-append "FIL can't find a stage with specified number:\nstage_id=" (number->string stage_id)))
+      (proc_error (string-append "FIL can't find a process with specified number:\nstage_id=" (number->string stage_id) "\nproc_id=" (number->string proc_id)))
       (stage_counter -1)
       (proc_counter -1)
       (current_stage_list)
@@ -409,7 +409,7 @@
       )
       (set! temp_list fk-stages-list)
 
-      ;Получение листа текущей стадии
+      ;Recieving list of current stage
       (if (not (or (= stage_id 0) (> stage_id (- (length fk-stages-list) 1))))
 	(while (< stage_counter stage_id)
 	  (begin
@@ -423,7 +423,7 @@
 
       (if (= param TRUE)
 
-	;Генерирование листа с именами прцессов
+	;Nmae list generation
 	(begin
 	  (while (not (null? current_stage_list))
 	    (set! temp_entry (car current_stage_list))
@@ -433,7 +433,7 @@
 	  (set! stage-handle name_list)
 	)
 
-	;Получени листа с именем процесс и блоком запуска
+	;Recieving list with name of process and code block
 	(begin
 	  (if (not (or (< proc_id 0) (> proc_id (- (length current_stage_list) 1))))
 	    (begin
@@ -452,82 +452,82 @@
 stage-handle
 )
 
-;Часть регистрации процедуры FIL, отвечающей за данные автора
+;FIL registation part resposible for author rights
 (define fil-credits
   (list
-  "Непочатов Станислав"
+  "Nepochatov Stanislav"
   "GPLv3"
-  "9 Июня 2010"
+  "June 9 2010"
   )
 )
 
-;Часть регистрации процедуры FIL, отвечающий за настройку процедуры
+;FIL registation part responsible for procedure tuning
 (define fil-controls
   (list
-  SF-TOGGLE	"Стадия цветокорректировки"	TRUE
-  SF-OPTION 	"Цветовой процесс" 		(fil-stage-handle TRUE 1 0)
-  SF-TOGGLE	"Стадия зернистости"		TRUE
-  SF-OPTION	"Процесс зернистости"		(fil-stage-handle TRUE 2 0)
-  SF-TOGGLE	"Включить виньетирование"	FALSE
-  SF-ADJUSTMENT	"Радиус виньетирования (%)"	'(100 85 125 5 10 1 0)
-  SF-ADJUSTMENT	"Мягкость виньетирования (%)"	'(33 20 45 2 5 1 0)
-  SF-ADJUSTMENT	"Плотность виньетирования"	'(100 0 100 10 25 1 0)
-  SF-OPTION	"Cтепень размытия краев"	'("Отключено" "x1" "x2" "x3")
-  SF-ADJUSTMENT	"Коррекция экспозиции"		'(0 -2 2 0.1 0.3 1 0)
-  SF-TOGGLE	"Записать опции в имя слоя"	FALSE
+  SF-TOGGLE	"Colorcorrection stage"		TRUE
+  SF-OPTION 	"Color process" 		(fil-stage-handle TRUE 1 0)
+  SF-TOGGLE	"Grain stage"			TRUE
+  SF-OPTION	"Grain process"			(fil-stage-handle TRUE 2 0)
+  SF-TOGGLE	"Enable vignette"		FALSE
+  SF-ADJUSTMENT	"Vignette radius (%)"		'(100 85 125 5 10 1 0)
+  SF-ADJUSTMENT	"Vignette softness (%)"		'(33 20 45 2 5 1 0)
+  SF-ADJUSTMENT	"Vignette opacity"		'(100 0 100 10 25 1 0)
+  SF-OPTION	"Border blur"			'("Disabled" "x1" "x2" "x3")
+  SF-ADJUSTMENT	"Exposure correction"		'(0 -2 2 0.1 0.3 1 0)
+  SF-TOGGLE	"Write options in layer's name"	FALSE
   )
 )
 
-;Регистрация процедуры ядра fil-ng-core
+;fil-ng-core procedure registration
 (apply script-fu-register
   (append
     (list
     "fil-ng-core"
-    _"<Image>/Filters/RSS/_ЛИПС 1.6"
-    "Лаборатория имитации пленочных снимков"
+    _"<Image>/Filters/RSS/_FIL 1.6"
+    "Film Imitation Lab"
     )
     fil-credits
     (list
     "RGB,RGBA*"
-    SF-IMAGE	"Изображение"			0
+    SF-IMAGE	"Image"				0
     )
     fil-controls
     (list
-    SF-TOGGLE	"Работать с видимым"		FALSE
+    SF-TOGGLE	"Work with visible"		FALSE
     )
   )
 )
 
-;Процедура конвеерного исполнения ядра
-(define (fil-ng-batch		;имя процедуры
+;Batch core procedure
+(define (fil-ng-batch		;procedure name
 
-	;Управление конвейерным исполненнием
-	fb_dir_in		;адрес входящей директории;
-	fb_input_format		;входящий формат;
-	fb_dir_out		;адрес выходящей директории;
-	fb_out_format		;выходящий формат;
+	;Batch execution control
+	fb_dir_in		;input directory address
+	fb_input_format		;input format;
+	fb_dir_out		;output directory address;
+	fb_out_format		;output format;
 
-	;Управление цветовыми процессами
-	fbm_clr_flag		;переключатель исполнения цветового процесса;
-	fbm_clr_id		;номер цветового процесса;
+	;Color stage control
+	fbm_clr_flag		;color proceess execution switch;
+	fbm_clr_id		;color process number;
 
-	;Управление процессами зернистости
-	fbm_grain_flag		;переключатель исполнения процесса зернистости;
-	fbm_grain_id		;номер процесса зернистости;
+	;Grain stage control
+	fbm_grain_flag		;grain proceess execution switch;
+	fbm_grain_id		;grain process number;
 
 	;Управление пре-процессами
-	fbm_pre_vign_flag	;переключатель активации виньетирования;
-	fbm_pre_vign_rad	;радиус виньетирования в процентах;
-	fbm_pre_vign_soft	;мягкость виньетирования;
-	fbm_pre_vign_opc	;плотность виньетирования;
-	fbm_pre_blur_step	;регулятор размытия;
-	fbm_pre_xps_control	;регулятор корректировки экспозиции;
+	fbm_pre_vign_flag	;vignette activation switch;;
+	fbm_pre_vign_rad	;vignette radius in percents;
+	fbm_pre_vign_soft	;vignette softness;
+	fbm_pre_vign_opc	;vingette opacity;
+	fbm_pre_blur_step	;border blur control;
+	fbm_pre_xps_control	;exposure correction control;
 	
-	;Дополнительные элементы управления
-	fbm_misc_logout		;переключатель опционального вывода опций;
+	;Additional options
+	fbm_misc_logout		;visible switch;
 	)
 
-  ;Определение входящего формата
+  ;Input format definition
   (define input-ext)
   (cond
     ((= fb_input_format 0) (set! input-ext "*"))
@@ -536,7 +536,7 @@ stage-handle
     ((= fb_input_format 3) (set! input-ext "[xX][cC][fF]"))
   )
 
-  ;Определение выходящего формата
+  ;Output format definition
   (define out-ext)
   (cond
     ((= fb_out_format 0) (set! out-ext "jpg"))
@@ -547,7 +547,7 @@ stage-handle
     ((= fb_out_format 5) (set! out-ext "psd"))
   )
 
-  ;Декларация переменных
+  ;Declaration of variables
   (let*	(
 	(dir_os (if (equal? (substring gimp-dir 0 1) "/") "/" "\\"))
 	(pattern (string-append fb_dir_in dir_os "*." input-ext))
@@ -555,7 +555,7 @@ stage-handle
 	(run_mode 1)
 	)
 
-	;Начало цикла
+	;Cycle begin
 	(while (not (null? filelist))
 	  (let* (
 		(cur_target (car filelist))
@@ -567,7 +567,7 @@ stage-handle
 		(res_layer)
 		)
 
-		;Предварительное сведение слоев
+		;Preliminary layer merging
 		(if (> fb_input_format 2)
 		  (begin
 		    (set! srclayer (car (gimp-image-get-active-layer img)))
@@ -580,7 +580,7 @@ stage-handle
 		  (set! srclayer (car (gimp-image-get-active-layer img)))
 		)
 
-		;Непосредственно процедура запуска процедуры ядра fil-ng-core
+		;fil-ng-core launching
 		(fil-ng-core 
 		  img				;>>fm_image
 		  fbm_clr_flag			;>>fm_clr_flag
@@ -597,17 +597,17 @@ stage-handle
 		  FALSE				;>>fm_misc_visible
 		)
 
-		;Полседующее сведение слоев
+		;Final layers merging
 		(if (< fb_out_format 4)
 		  (set! res_layer (car (gimp-image-merge-visible-layers img 0)))
 		  (set! res_layer (car (gimp-image-get-active-layer img)))
 		)
 
-		;Обработка строковых переменных и получение выходящего пути
+		;String proceessting and construction output path
 		(set! file (substring filename (string-length fb_dir_in) (- (string-length filename) 4 )))
-		(set! target_out (string-append fb_dir_out "/" file "_ЛИПС." out-ext))
+		(set! target_out (string-append fb_dir_out "/" file "_FIL." out-ext))
 
-		;Сохранение файла
+		;File saving
 		(cond
 		  ((= fb_out_format 0) (file-jpeg-save 1 img res_layer target_out target_out 1 0 1 1 "" 2 1 0 0))
 		  ((= fb_out_format 1) (file-png-save-defaults 1 img res_layer target_out target_out))
@@ -617,36 +617,36 @@ stage-handle
 		  ((= fb_out_format 5) (file-psd-save 1 img res_layer target_out target_out 1 0))
 		)
 
-		;Удаление изображения
+		;Image remocing
 		(gimp-image-delete img)
 	  )
 
-	  ;Сдвиг списка имен файлов и завершение этапа цикла
+	  ;List offset and cycle's stage ending
 	  (set! filelist (cdr filelist))
 	)
   )
 )
 
-;Регистрация процедуры пакетной обработки ядра fil-ng-batch
+;fil-ng-batch procedure registration
 (apply script-fu-register
   (append
     (list
     "fil-ng-batch"
-    _"<Image>/Filters/RSS/ЛИПС 1.6 _Конвейер"
-    "Конвейерное исполнение ЛИПС"
+    _"<Image>/Filters/RSS/FIL 1.6 Batch"
+    "FIL batch mode"
     )
     fil-credits
     (list
     ""
-    SF-DIRNAME	"Папка-источник"	"/home/spoilt/Документы/Batch/IN"
-    SF-OPTION	"Входящий формат"	'(
+    SF-DIRNAME	"Input folder"		""
+    SF-OPTION	"Input format"		'(
 					"*"
 					"JPG"
 					"TIFF"
 					"XCF"
 					)
-    SF-DIRNAME	"Папка-назначение"	"/home/spoilt/Документы/Batch/OUT"
-    SF-OPTION	"Формат сохранения"	'(
+    SF-DIRNAME	"Output folder"		""
+    SF-OPTION	"Output format"		'(
 					"JPG"
 					"PNG"
 					"TIF"
@@ -660,12 +660,12 @@ stage-handle
 )
 
 ;fil-source-handle
-;МОДУЛЬ ЯДРА
-;Входные переменные:
-;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
-;ЛОГИЧ. - значение fm_misc_visible;
-;Вовращаемые значения:
-;СЛОЙ - готовый слой;
+;CORE MODULE
+;Input variables:
+;IMAGE - processing image;
+;BOOLEAN. - fm_misc_visible raw value;
+;Returned variables:
+;LAYER - ready layer;
 (define (fil-source-handle image viz)
 (define exit)
   (let* (
@@ -681,13 +681,13 @@ stage-handle
 	      )
 	    )
 	    (gimp-floating-sel-to-layer exit-layer)
-	    (gimp-drawable-set-name exit-layer "Источник = Видимое")
+	    (gimp-drawable-set-name exit-layer "Source = Visible")
 	    (gimp-image-raise-layer-to-top image exit-layer)
 	  )
 	  (begin
 	    (set! exit-layer (car (gimp-layer-copy active FALSE)))
 	    (gimp-image-add-layer image exit-layer -1)
-	    (gimp-drawable-set-name exit-layer "Источник = Копия")
+	    (gimp-drawable-set-name exit-layer "Source = Copy")
 	  )
 	)
 	(set! exit exit-layer)
@@ -695,13 +695,13 @@ stage-handle
 exit
 )
 
-;Завершение области ядра
+;Core section end
 
 ;fil-pre-xps
-;ПРЕ-ПРОЦЕСС
-;Входные переменные:
-;СЛОЙ - обрабатываемый слой;
-;ЦЕЛОЕ - величина корректировки экспозиции;
+;PRE-PROCESS
+;Input variables:
+;LAYER - processing layer;
+;INTEGER - exposure correction value;
 (define (fil-pre-xps image layer control)
   (let* (
 	(low_input (- 0 (* control 25)))
@@ -718,18 +718,18 @@ exit
 )
 
 ;fil-pre-vignette
-;ПРЕ-ПРОЦЕСС
-;Входные переменные:
-;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
-;СЛОЙ - обрабатываемый слой;
-;ЦЕЛОЕ - значение высоты изображения;
-;ЦЕЛОЕ - значение ширины изображения;
-;ЦЕЛОЕ - значение прозрачности виньтирования;
-;ЦЕЛОЕ - значение резкости границы виньетирования;
-;ЦЕЛОЕ - значение радиуса виньетирования;
-;ЦВЕТ - цвет переднего плана;
-;Возвращаемые значения:
-;СЛОЙ - обработанный слой;
+;PRE-PROCESS
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
+;INTEGER - image height value;
+;INTEGER - image width value;
+;INTEGER - vignette opacity value;
+;INTEGER - vignette softness value;
+;INTEGER - vignette radius value;
+;COLOR - foreground color;
+;Returned variables:
+;LAYER - processed layer;
 (define (fil-pre-vignette image src imh imw vign_opc vign_rad vign_soft fore)
 (define vign-exit)
   (let* (
@@ -741,7 +741,7 @@ exit
 	(off_y)
 	(p_big)
 	(d_diff)
-	(vign (car (gimp-layer-new image imw imh 1 "Виньетирование" 100 0)))
+	(vign (car (gimp-layer-new image imw imh 1 "Vignette" 100 0)))
 	(norm_vign)
 	)
 	(if (> p_imh p_imw)
@@ -785,7 +785,7 @@ exit
 	(gimp-context-set-foreground fore)
 	(set! norm_vign (car (gimp-layer-copy vign TRUE)))
 	(gimp-image-add-layer image norm_vign -1)
-	(gimp-drawable-set-name norm_vign "Нормальное виньетирование")
+	(gimp-drawable-set-name norm_vign "Normal vignette")
 	(gimp-layer-set-mode vign 5)
 	(gimp-layer-set-mode norm_vign 3)
 	(gimp-layer-set-opacity vign vign_opc)
@@ -807,13 +807,13 @@ vign-exit
 )
 
 ;fil-pre-badblur
-;ПРЕ-ПРОЦЕСС
-;Входные переменные:
-;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
-;СЛОЙ - обрабатываемый слой;
-;ЦЕЛОЕ - значение высоты изображения;
-;ЦЕЛОЕ - значение ширины изображения;
-;ЦЕЛОЕ - значение степени размытия;
+;PRE-PROCESS
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
+;INTEGER - image height value;
+;INTEGER - image width value;
+;INTEGER - blur step value;
 (define (fil-pre-badblur image layer imh imw ext)
   (set! ext (+ ext 1))
   (gimp-image-undo-freeze image)
@@ -822,27 +822,27 @@ vign-exit
 )
 
 ;fil-int-sov
-;ЦВЕТОВОЙ ПРОЦЕСС
-;Входные переменные:
-;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
-;СЛОЙ - обрабатываемый слой;
-;ЦЕЛОЕ - значение высоты изображения;
-;ЦЕЛОЕ - значение ширины изображения;
-;ЦЕЛОЕ - значение плотности тонирования;
-;ЦЕЛОЕ - значение плотности красной вуали;
-;Возвращаемые значения:
-;СЛОЙ - обработанный слой;
+;COLOR PROCESS
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
+;INTEGER - image height value;
+;INTEGER - image width value;
+;INTEGER - tone opacity value;
+;INTEGER - red veil opacity value;
+;Returned variables:
+;LAYER - processed layer;
 (define (fil-int-sov image layer imh imw opc_tone opc_red)
 (define sov-exit)
   (let* (
 	(first (car (gimp-layer-copy layer FALSE)))
-	(red (car (gimp-layer-new image imw imh 0 "Тон маски" 100 0)))
+	(red (car (gimp-layer-new image imw imh 0 "Mask tone" 100 0)))
 	(red_mask)
 	)
 	(gimp-hue-saturation layer 0 5 0 -30)
 	(gimp-image-add-layer image first -1)
 	(gimp-image-add-layer image red -1)
-	(gimp-drawable-set-name first "Общий тон")
+	(gimp-drawable-set-name first "Gloval tone")
 	(set! red_mask
 	  (car
 	    (gimp-layer-create-mask layer 5)
@@ -867,47 +867,47 @@ vign-exit
 	  )
 	)
 	(gimp-hue-saturation layer 0 0 0 30)
-	(gimp-drawable-set-name layer "СОВ")
+	(gimp-drawable-set-name layer "SOV")
 	(set! sov-exit layer)
   )
 sov-exit
 )
 
 ;fil-int-gray
-;ЦВЕТОВОЙ ПРОЦЕСС
-;Входные переменные:
-;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
-;СЛОЙ - обрабатываемый слой;
+;COLOR PROCESS
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
 (define (fil-int-gray image layer)
   (plug-in-colors-channel-mixer 1 image layer TRUE 0 0.3 0.6 0 0 0 0 0 0)
-  (gimp-drawable-set-name layer "Ч/Б")
+  (gimp-drawable-set-name layer "B/W")
 )
 
 ;fil-int-lomo
-;ЦВЕТОВОЙ ПРОЦЕСС
-;Входные переменные:
-;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
-;СЛОЙ - обрабатываемый слой;
+;COLOR PROCESS
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
 (define (fil-int-lomo image layer)
   ;code by Donncha O Caoimh (donncha@inphotos.org) and elsamuko (elsamuko@web.de)
   ;http://registry.gimp.org/node/7870
   (gimp-curves-spline layer 1 10 #(0 0 80 84 149 192 191 248 255 255))
   (gimp-curves-spline layer 2 8 #(0 0 70 81 159 220 255 255))
   (gimp-curves-spline layer 3 4 #(0 27 255 213))
-  (gimp-drawable-set-name layer "Ломо")
+  (gimp-drawable-set-name layer "Lomo")
 )
 
 ;fil-int-sepia
-;ЦВЕТОВОЙ ПРОЦЕСС
-;Входные переменные:
-;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
-;СЛОЙ - обрабатываемый слой;
-;ЦЕЛОЕ - значение высоты изображения;
-;ЦЕЛОЕ - значение ширины изображения;
-;ЦВЕТ - цвет переднего плана;
-;БУЛЕВОЕ - переключатель режима имитации фотобумаги;
-;Возвращаемые значения:
-;СЛОЙ - обработанный слой;
+;COLOR PROCESS
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
+;INTEGER - image height value;
+;INTEGER - image width value;
+;COLOR - foreground color;
+;BOOLEAN - paper imitation switch;
+;Returned variables:
+;LAYER - processed layer;
 (define (fil-int-sepia image layer imh imw foreground paper_switch)
 (define sepia-exit)
   (let* (
@@ -915,7 +915,7 @@ sov-exit
 	)
 	(if (= paper_switch TRUE)
 	  (begin
-	    (set! paper (car (gimp-layer-new image imw imh 0 "Фотобумага" 100 0)))
+	    (set! paper (car (gimp-layer-new image imw imh 0 "Paper" 100 0)))
 	    (gimp-image-add-layer image paper -1)
 	    (gimp-context-set-foreground '(224 213 184))
 	    (gimp-drawable-fill paper 0)
@@ -929,22 +929,22 @@ sov-exit
 	  )
 	)
 	(gimp-colorize layer 34 30 0)
-	(gimp-drawable-set-name layer "Сепия")
+	(gimp-drawable-set-name layer "Sepia")
 	(set! sepia-exit layer)
   )
 sepia-exit
 )
 
 ;fil-int-duo
-;ЦВЕТОВОЙ ПРОЦЕСС
-;Входные переменные:
-;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
-;СЛОЙ - обрабатываемый слой;
-;ЦЕЛОЕ - значение плотности слоя аффекта;
-;ЦВЕТ - цвет для светлой области;
-;ЦВЕТ - цвет для темно области;
-;Возвращаемые переменные:
-;СЛОЙ - ббработанный слой;
+;COLOR PROCESS
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
+;INTEGER - affect opacity value;
+;COLOR - light area color;
+;COLOR - dark area color;
+;Returned variables:
+;LAYER - processed layer;
 (define (fil-int-duo image layer opc_affect light_color dark_color)
 (define duo-exit)
   (let* (
@@ -956,9 +956,9 @@ sepia-exit
 	(gimp-image-add-layer image dark -1)
 	(gimp-image-add-layer image affect -1)
 	(gimp-image-add-layer image light -1)
-	(gimp-drawable-set-name dark "Темный тон")
-	(gimp-drawable-set-name light "Светлый тон")
-	(gimp-drawable-set-name affect "Аффект")
+	(gimp-drawable-set-name dark "Dark tone")
+	(gimp-drawable-set-name light "Light Tone")
+	(gimp-drawable-set-name affect "Affect")
 	(gimp-desaturate affect)
 	(gimp-levels affect 0 60 195 1.0 0 255)
 	(set! lightmask
@@ -984,30 +984,30 @@ duo-exit
 )
 
 ;fil-int-simplegrain
-;ПРОЦЕСС ЗЕРНИСТОСТИ
-;Входные переменные
-;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
-;СЛОЙ - обрабатываемый слой;
+;GRAIN PROCESS
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
 (define (fil-int-simplegrain image clr_res)
   (plug-in-hsv-noise 1 image clr_res 2 3 0 25)
-  (gimp-drawable-set-name clr_res "Простая зернистость")
+  (gimp-drawable-set-name clr_res "Simple grain")
 )
 
 ;fil-int-adv_grain
-;ПРОЦЕСС ЗЕРНИСТОСТИ
-;Входные переменные:
-;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
-;СЛОЙ - обрабатываемый слой;
-;ЦЕЛОЕ - значение высоты изображения;
-;ЦЕЛОЕ - значение ширины изображения;
-;ЦВЕТ - цвет переднего плана;
-;ЛОГИЧЕСКОЕ - значение установки усиления зернистости;
-;Возвращаемые значения:
-;СЛОЙ - обработанный слой;
+;GRAIN PROCESS
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
+;INTEGER - image height value;
+;INTEGER - image width value;
+;COLOR - foreground color;
+;BOOLEAN - grain amplification switch;
+;Returned variables:
+;LAYER - processed layer;
 (define (fil-int-adv_grain image clr_res imh imw foreground boost)
 (define adv-exit)
   (let* (
-	(name "Зерно+")
+	(name "Grain+")
 	(grain_boost)
 	(rel_step (if (> imh imw) (/ imh 800) (/ imw 800)))
 	(grain)
@@ -1015,7 +1015,7 @@ duo-exit
 	)
 	(set! grain 
 	  (car 
-	    (gimp-layer-new image imw imh 0 "Зерно+" 100 0)
+	    (gimp-layer-new image imw imh 0 "Grain+" 100 0)
 	  )
 	)
 	(gimp-image-add-layer image grain -1)
@@ -1038,8 +1038,8 @@ duo-exit
 	  (begin
 	    (set! grain_boost (car (gimp-layer-copy grain FALSE)))
 	    (gimp-image-add-layer image grain_boost -1)
-	    (gimp-drawable-set-name grain_boost "усиление")
-	    (set! name (string-append name " усил."))
+	    (gimp-drawable-set-name grain_boost "Amplification")
+	    (set! name (string-append name " amp."))
 	  )
 	)
 	(set! clr_res (car (gimp-image-merge-down image grain 0)))
@@ -1054,17 +1054,17 @@ adv-exit
 )
 
 ;fil-int-sulfide
-;ПРОЦЕСС ЗЕРНИСТОСТИ
-;Входные переменные:
-;ИЗОБРАЖЕНИЕ - обрабатываемое изображение;
-;СЛОЙ - обрабатываемый слой;
-;ЦЕЛОЕ - значение высоты изображения;
-;ЦЕЛОЕ - значение ширины изображения;
-;ЦВЕТ - цвет переднего плана;
-;ЧИСЛО - значение увеличение масштаба зерна;
-;БУЛЕВОЕ - переключатель гранж-режима;
-;Возвращаемые значения:
-;СЛОЙ - обработанный слой;
+;GRAIN PROCESS
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
+;INTEGER - image height value;
+;INTEGER - image width value;
+;COLOR - foreground color;
+;REAL - grain scale;
+;BOOLEAN - grunge-mode switch;
+;Returned variables:
+;LAYER - processed layer;
 (define (fil-int-sulfide image layer imh imw foreground scale_step grunge_switch)
 (define sulf-exit)
   (let* (
@@ -1079,7 +1079,7 @@ adv-exit
 	)
 	(set! scale_layer
 	  (car 
-	    (gimp-layer-new image sc_imw sc_imh 0 "Слой масштаба" 100 0)
+	    (gimp-layer-new image sc_imw sc_imh 0 "Scale layer" 100 0)
 	  )
 	)
 	(gimp-image-add-layer image scale_layer -1)
@@ -1095,7 +1095,7 @@ adv-exit
 	)
 	(set! grain_layer 
 	  (car 
-	    (gimp-layer-new image imw imh 0 "Нормальное зерно" 100 0)
+	    (gimp-layer-new image imw imh 0 "Normal Grain" 100 0)
 	  )
 	)
 	(gimp-image-add-layer image grain_layer -1)
@@ -1115,7 +1115,7 @@ adv-exit
 	  (begin
 	    (set! grunge_layer 
 	      (car 
-		(gimp-layer-new image imw imh 0 "Гранж" 100 0)
+		(gimp-layer-new image imw imh 0 "Grunge" 100 0)
 	      )
 	    )
 	    (gimp-image-add-layer image grunge_layer -1)
