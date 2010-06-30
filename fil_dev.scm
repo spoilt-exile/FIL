@@ -30,7 +30,7 @@
 ; - specs modification.
 ; - module classes introduction.
 ;===============================================================================================================
-;ver 0.8 (24 December 2009)
+;ver 0.8 (December 24 2009)
 ; - new core (NG).
 ; - vignette as pre-process.
 ; - grian amplification as part of core (not recomended with Simple Grian process).
@@ -71,7 +71,7 @@
 ; - FIL core batch execution;
 ; - new grain process "Sulfide"
 ;===============================================================================================================
-;ver 1.6.0 (9 июня 2010)
+;ver 1.6.0 (June 9 2010)
 ; - script's core modification;
 ; - optional option output;
 ; - launching processes with custome options;
@@ -106,7 +106,7 @@
 ;=================================FIL 1.6 modules requirements list:============================================
 ; * processes can't call other FIL processes from itself but it can call private additional procedures.
 ; * processes shouldn't change image dimensions or it's color depth.
-; * procceses able to take some image option from FIL core by itself (variables with prefix fc).
+; * procceses able to take some image option from FIL core by itself (variable class fc_*).
 ; * register stage should be defined by it's variable and should be included in fk-stages-list.
 ; * processes (except pre-proccesses) should be register in fk-clr-stage and fk-grain-stage variables.
 ; * processes should return final layer to core (if processes use many layers).
@@ -149,7 +149,7 @@
     ;Process "Duotone: soft" with proc_id=7
     (list "Duotone: soft" 		(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 30 '(200 175 140) '(80 102 109)))))
 
-    ;Process "Duotone: colors" with proc_id=8
+    ;Process "Duotone: user colors" with proc_id=8
     (list "Duotone: user colors"	(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 55 fc_fore fc_back))))
   )
 )
