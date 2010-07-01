@@ -163,10 +163,10 @@
     (list "Простая зернистость"	(quote (fil-int-simplegrain fm_image fp_grain_layer)))
 
     ;Process "Grain+: normal" with proc_id=1
-    (list "Зерно+: обыч." 	(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore FALSE))))
+    (list "Зерно+: обычный" 	(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore FALSE))))
 
     ;Process "Grain+: amplified" with proc_id=2
-    (list "Зерно+: усил." 	(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore TRUE))))
+    (list "Зерно+: усиленный" 	(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore TRUE))))
 
     ;Process "Sulfide: normal" with proc_id=3
     (list "Сульфид: обычный"	(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 2.5 FALSE))))
