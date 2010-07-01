@@ -240,7 +240,7 @@
 	(fx_grain_list)						;List of variables recived from fil-stage-handle while grain stage
 	(fx_grain_exp)						;grain stage execution code block
 
-	;Слои взаимодействия с процессами
+	;Stages I/O layers
 	(fp_pre_layer)						;pre-stage layer
 	(fp_clr_layer)						;color stage layer
 	(fp_grain_layer)					;grain stage layer
@@ -1068,7 +1068,6 @@ adv-exit
 (define (fil-int-sulfide image layer imh imw foreground scale_step grunge_switch)
 (define sulf-exit)
   (let* (
-	;(scale_step 2.8)
 	(sc_imh (/ imh scale_step))
 	(sc_imw (/ imw scale_step))
 	(scale_layer)
