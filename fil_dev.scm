@@ -399,6 +399,7 @@
 (let* (
       (stage_error (string-append "FIL can't find a stage with specified number:\nstage_id=" (number->string stage_id)))
       (proc_error (string-append "FIL can't find a process with specified number:\nstage_id=" (number->string stage_id) "\nproc_id=" (number->string proc_id)))
+      (curr_error (string-append "Current FIL stage isn't registrable:\nstage_id=" (number->string stage_id)))
       (stage_counter -1)
       (proc_counter -1)
       (current_stage_list)
@@ -410,7 +411,7 @@
       (set! temp_list fk-stages-list)
 
       ;Recieving list of current stage
-      (if (not (or (= stage_id 0) (> stage_id (- (length fk-stages-list) 1))))
+      (if (not (or (< stage_id 0) (> stage_id (- (length fk-stages-list) 1))))
 	(while (< stage_counter stage_id)
 	  (begin
 	    (set! current_stage_list (car temp_list))
@@ -421,6 +422,12 @@
 	(gimp-message stage_error)
       )
 
+      ;Error message if current stage return FALSE
+      (if (not (list? current_stage_list))
+	(gimp-message curr_error)
+      )
+
+      ;Stage processing
       (if (= param TRUE)
 
 	;Nmae list generation
