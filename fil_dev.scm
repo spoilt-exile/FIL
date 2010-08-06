@@ -1,4 +1,4 @@
-;FIL v1.6.0
+;FIL v1.6.0 release snaphot
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -21,30 +21,30 @@
 ;Version history:
 ;===============================================================================================================
 ;ver. 0.3 (December 19 2009)
-; - working script with small amount of procedures.
-; - FIL 0.3 specifications definition.
+; - working script with small amount of procedures;
+; - FIL 0.3 specifications definition;
 ;===============================================================================================================
 ;ver. 0.5 (December 22 2009)
-; - separate execution of color and grain processes.
-; - option indicaion output into final layer's name.
-; - specs modification.
-; - module classes introduction.
+; - separate execution of color and grain processes;
+; - option indicaion output into final layer's name;
+; - specs modification;
+; - module classes introduction;
 ;===============================================================================================================
 ;ver 0.8 (December 24 2009)
-; - new core (NG).
-; - vignette as pre-process.
-; - grian amplification as part of core (not recomended with Simple Grian process).
-; - work woth visible.
-; - new grain process (Grain+).
+; - new core (NG);
+; - vignette as pre-process;
+; - grian amplification as part of core (not recomended with Simple Grian process);
+; - work woth visible;
+; - new grain process (Grain+);
 ;===============================================================================================================
 ;ver. 1.0 (January 11 2010)
-; - core independ process execution enhancement.
-; - bugfixes.
-; - color process and etc modification.
-; - grain amplification in grain process.
-; - border blur (like bad lenses).
-; - interface modification.
-; - vignette radius (may be increased).
+; - core independ process execution enhancement;
+; - bugfixes;
+; - color process and etc modification;
+; - grain amplification in grain process;
+; - border blur (like bad lenses);
+; - interface modification;
+; - vignette radius (may be increased);
 ;===============================================================================================================
 ;ver. 1.0r1 (February 17 2010)
 ; - vignette process modification;
@@ -69,9 +69,9 @@
 ;===============================================================================================================
 ;ver 1.5.1 (June 5 2010)
 ; - FIL core batch execution;
-; - new grain process "Sulfide"
+; - new grain process "Sulfide";
 ;===============================================================================================================
-;ver 1.6.0 (June 9 2010)
+;ver 1.6.0 (August 6 2010)
 ; - script's core modification;
 ; - optional option output;
 ; - launching processes with custome options;
@@ -104,13 +104,13 @@
 ; -ext - externel procedure (somewhere out of this file).
 ; -dep - external procedure which depend on binary plug-ins.
 ;=================================FIL 1.6 modules requirements list:============================================
-; * processes can't call other FIL processes from itself but it can call private additional procedures.
+; * processes shouldn't call other FIL processes from itself but it can call private additional procedures.
 ; * processes shouldn't change image dimensions or it's color depth.
 ; * procceses able to take some image option from FIL core by itself (variable class fc_*).
 ; * register stage should be defined by it's variable and should be included in fk-stages-list.
 ; * processes (except pre-proccesses) should be register in fk-clr-stage and fk-grain-stage variables.
 ; * processes should return final layer to core (if processes use many layers).
-; * processes could have special launch options.
+; * processes could have special launch options (for creating profiles).
 ;========================================FIL 1.6 core stages====================================================
 ;Stage			Register?			Stage number (stage_id)
 ;pre-stage		NO				0
@@ -182,7 +182,7 @@
 ;Global stage list
 (define fk-stages-list 
   (list 
-    FALSE			;Pre-process stage marked as FALSE (not register stage)
+    FALSE			;Pre-process stage marked as FALSE (not register stage);
     fk-clr-stage		;Color process stage;
     fk-grain-stage		;Grain process stage;
   )
@@ -463,8 +463,8 @@ stage-handle
 (define fil-credits
   (list
   "Nepochatov Stanislav"
-  "GPLv3"
-  "June 9 2010"
+  "GNU GPLv3"
+  "August 6 2010"
   )
 )
 
