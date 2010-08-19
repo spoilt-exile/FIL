@@ -1,4 +1,4 @@
-;FIL v1.6.0 release snaphot
+;FIL v1.7.0 beta1
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -16,7 +16,12 @@
 ;http://www.gnu.org/licenses/gpl-3.0.html
 ;
 ;FIL = ЛИПС (Лаборатория Имитации Пленочных Снимков);
-;TO-DO (ver. 1.6.1):
+;TO-DO (ver. 1.7.0):
+; - separate image processing (important!);		(DONE)
+; - undo support (important!);				(DONE)
+; - localization subsystem;
+; - core redisighn;					(DONE)
+; - binary plugin integration (important!);
 ; - port some processes;
 ;Version history:
 ;===============================================================================================================
@@ -80,10 +85,10 @@
 ;===============================================================================================================
 ;Procedures:			Status		Revision	Specs version
 ;==========================================CORE PROCEDURES======================================================
-;fil-ng-core			stable		---		1.6
+;fil-spe-core			stable		---		1.6
 ;fil-stage-handle		stable		---		---
 ;fil-source-handle		stable		---		---
-;fil-ng-batch			stable		---		---
+;fil-spe-batch			stable		---		---
 ;===========================================PRE-PROCESSES=======================================================
 ;fil-pre-xps			stable		r0		1.6
 ;fil-pre-vignette		stable		r3		1.6
@@ -126,31 +131,31 @@
   (list
     
     ;Process "SOV: normal" with proc_id=0
-    (list "СОВ: обычный" 	(quote (set! fp_clr_layer (fil-int-sov fm_image fp_clr_layer fc_imh fc_imw 60 65))))
+    (list "СОВ: обычный" 	(quote (set! fio_uni_layer (fil-int-sov fk-sep-image fio_uni_layer fc_imh fc_imw 60 65))))
 
     ;Process "SOV: light" with proc_id=1
-    (list "СОВ: легкий" 	(quote (set! fp_clr_layer (fil-int-sov fm_image fp_clr_layer fc_imh fc_imw 30 35))))
+    (list "СОВ: легкий" 	(quote (set! fio_uni_layer (fil-int-sov fk-sep-image fio_uni_layer fc_imh fc_imw 30 35))))
 
     ;Process "B/W" with proc_id=2
-    (list "Ч/Б" 		(quote (fil-int-gray fm_image fp_clr_layer)))
+    (list "Ч/Б" 		(quote (fil-int-gray fk-sep-image fio_uni_layer)))
 
     ;Process "Lomo" with proc_id=3
-    (list "Ломо" 		(quote (fil-int-lomo fm_image fp_clr_layer)))
+    (list "Ломо" 		(quote (fil-int-lomo fk-sep-image fio_uni_layer)))
 
     ;Process "Sepia: normal" with proc_id=4
-    (list "Сепия: обычная" 	(quote (set! fp_clr_layer (fil-int-sepia fm_image fp_clr_layer fc_imh fc_imw fc_fore FALSE))))
+    (list "Сепия: обычная" 	(quote (set! fio_uni_layer (fil-int-sepia fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore FALSE))))
 
     ;Process "Sepia: with imitation" with proc_id=5
-    (list "Сепия: с имитацией"	(quote (set! fp_clr_layer (fil-int-sepia fm_image fp_clr_layer fc_imh fc_imw fc_fore TRUE))))
+    (list "Сепия: с имитацией"	(quote (set! fio_uni_layer (fil-int-sepia fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore TRUE))))
 
     ;Process "Duotone: normal" with proc_id=6
-    (list "Двутон: обычный" 	(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 75 '(200 175 140) '(80 102 109)))))
+    (list "Двутон: обычный" 	(quote (set! fio_uni_layer (fil-int-duo fk-sep-image fio_uni_layer 75 '(200 175 140) '(80 102 109)))))
 
     ;Process "Duotone: soft" with proc_id=7
-    (list "Двутон: мягкий" 	(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 30 '(200 175 140) '(80 102 109)))))
+    (list "Двутон: мягкий" 	(quote (set! fio_uni_layer (fil-int-duo fk-sep-image fio_uni_layer 30 '(200 175 140) '(80 102 109)))))
 
     ;Process "Duotone: user colors" with proc_id=8
-    (list "Двутон: свои цвета" 	(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 55 fc_fore fc_back))))
+    (list "Двутон: свои цвета" 	(quote (set! fio_uni_layer (fil-int-duo fk-sep-image fio_uni_layer 55 fc_fore fc_back))))
   )
 )
 
@@ -160,22 +165,22 @@
   (list
 
     ;Process "Simple grain" with proc_id=0
-    (list "Простая зернистость"	(quote (fil-int-simplegrain fm_image fp_grain_layer)))
+    (list "Простая зернистость"	(quote (fil-int-simplegrain fk-sep-image fio_uni_layer)))
 
     ;Process "Grain+: normal" with proc_id=1
-    (list "Зерно+: обычный" 	(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore FALSE))))
+    (list "Зерно+: обычный" 	(quote (set! fio_uni_layer (fil-int-adv_grain fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore FALSE))))
 
     ;Process "Grain+: amplified" with proc_id=2
-    (list "Зерно+: усиленный" 	(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore TRUE))))
+    (list "Зерно+: усиленный" 	(quote (set! fio_uni_layer (fil-int-adv_grain fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore TRUE))))
 
     ;Process "Sulfide: normal" with proc_id=3
-    (list "Сульфид: обычный"	(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 2.5 FALSE))))
+    (list "Сульфид: обычный"	(quote (set! fio_uni_layer (fil-int-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE))))
 
     ;Process "Sulfide: large scale" with proc_id=4
-    (list "Сульфид: крупный"	(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 3.1 FALSE))))
+    (list "Сульфид: крупный"	(quote (set! fio_uni_layer (fil-int-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 3.1 FALSE))))
 
     ;Process "Sulfide: grunge" with proc_id=5
-    (list "Сульфид: гранж"	(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 2.7 TRUE))))
+    (list "Сульфид: гранж"	(quote (set! fio_uni_layer (fil-int-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.7 TRUE))))
   )
 )
 
@@ -191,8 +196,14 @@
 ;Core stage counter
 (define fk-stage-counter 0)
 
+;Separate image variable
+(define fk-sep-image)
+
+;Core state for batch mode
+(define fk-batch-state FALSE)
+
 ;FIL core procedure
-(define (fil-ng-core		;procedure name;
+(define (fil-spe-core		;procedure name;
 
 	;Launching main atributes
 	fm_image		;image variable;
@@ -219,8 +230,14 @@
 	)
 
   ;Core start
-  (gimp-context-push)
-  (gimp-image-undo-disable fm_image)
+  (if (= fk-batch-state FALSE)
+      (gimp-image-undo-group-start fm_image)
+    (begin
+      (gimp-context-push)
+      (gimp-image-undo-disable fm_image)
+      (set! fk-sep-image fm_image)
+    )
+  )
 
   ;Variables declaration;
   (let* (
@@ -240,10 +257,8 @@
 	(fx_grain_list)						;List of variables recived from fil-stage-handle while grain stage
 	(fx_grain_exp)						;grain stage execution code block
 
-	;Stages I/O layers
-	(fp_pre_layer)						;pre-stage layer
-	(fp_clr_layer)						;color stage layer
-	(fp_grain_layer)					;grain stage layer
+	;Stages I/O layer
+	(fio_uni_layer)						;single layer for all stages
 
 	;Option indication string prefixes
 	(fs_pref_pre "-п ")					;pre-stage option prefix
@@ -257,7 +272,7 @@
 	(fs_xps_str "Эксп. ")					;exposure correction string mark
 	(fs_vign_str "(В) ")					;vignette string mark
 	(fs_blur_str "Разм. x")					;border blur (bad lenses) string mark
-	(fs_default_str "Результат обработки ЛИПС 1.6.0")	;final layer default string
+	(fs_default_str "Результат обработки ЛИПС 1.7.0")	;final layer default string
 	)
 
 	;Pre-stage activation section
@@ -272,13 +287,13 @@
 	  (begin
 
 	    ;Copying layer
-	    (set! fp_pre_layer (fil-source-handle fm_image fm_misc_visible))
+	    (set! fio_uni_layer (fil-source-handle fm_image fm_misc_visible))
 	    (set! fs_res_str (string-append fs_res_str fs_pref_pre))
 
 	    ;Exposure correction launching
 	    (if (not (= fm_pre_xps_control 0))
 	      (begin
-		(fil-pre-xps fm_image fp_pre_layer fm_pre_xps_control)
+		(fil-pre-xps fk-sep-image fio_uni_layer fm_pre_xps_control)
 		(set! fs_xps_str (string-append fs_xps_str (if (> fm_pre_xps_control 0) "+" "-") (number->string fm_pre_xps_control)))
 		(if (> (string-length fs_xps_str) 10)
 		  (set! fs_xps_str (substring fs_xps_str 0 11))
@@ -291,7 +306,7 @@
 	    (if (= fm_pre_vign_flag TRUE)
 	      (if (> fm_pre_vign_opc 0)
 		(begin
-		  (set! fp_pre_layer (fil-pre-vignette fm_image fp_pre_layer fc_imh fc_imw fm_pre_vign_opc fm_pre_vign_rad fm_pre_vign_soft fc_fore))
+		  (set! fio_uni_layer (fil-pre-vignette fk-sep-image fio_uni_layer fc_imh fc_imw fm_pre_vign_opc fm_pre_vign_rad fm_pre_vign_soft fc_fore))
 		  (set! fs_res_str (string-append fs_res_str fs_vign_str))
 		)
 	      )
@@ -300,20 +315,14 @@
 	    ;Blur launching
 	    (if (> fm_pre_blur_step 0)
 	      (begin
-		(fil-pre-badblur fm_image fp_pre_layer fc_imh fc_imw fm_pre_blur_step)
+		(fil-pre-badblur fk-sep-image fio_uni_layer fc_imh fc_imw fm_pre_blur_step)
 		(set! fs_res_str (string-append fs_res_str fs_blur_str (number->string (+ fm_pre_blur_step 1)) " "))
 	      )
-	    )
-
-	    (if (= fm_misc_logout TRUE)
-	      (gimp-drawable-set-name fp_pre_layer fs_res_str)
-	      (gimp-drawable-set-name fp_pre_layer fs_default_str)
 	    )
 	  )
 	)
 
-	;Layer transfering between stages and stage counter correction
-	(set! fp_clr_layer fp_pre_layer)
+	;Stage counter correction
 	(set! fk-stage-counter (+ fk-stage-counter 1))
 
 	;Color stage initalization
@@ -321,8 +330,8 @@
 	  (begin
 
 	    ;Recieved layer checking
-	    (if (null? fp_clr_layer)
-	      (set! fp_clr_layer (fil-source-handle fm_image fm_misc_visible))
+	    (if (null? fio_uni_layer)
+	      (set! fio_uni_layer (fil-source-handle fm_image fm_misc_visible))
 	    )
 
 	    ;Process list initalization
@@ -335,15 +344,10 @@
 
 	    ;String modification and layer renaming
 	    (set! fs_res_str (string-append fs_res_str fs_pref_clr fs_clr_str " "))
-	    (if (= fm_misc_logout TRUE)
-	      (gimp-drawable-set-name fp_clr_layer fs_res_str)
-	      (gimp-drawable-set-name fp_clr_layer fs_default_str)
-	    )
 	  )
 	)
 
-	;Layer transfering between stages and stage counter correction
-	(set! fp_grain_layer fp_clr_layer)
+	;Stage counter correction
 	(set! fk-stage-counter (+ fk-stage-counter 1))
 
 	;Grain stage initalization
@@ -351,8 +355,8 @@
 	  (begin
 
 	    ;Recieved layer checking
-	    (if (null? fp_grain_layer)
-	      (set! fp_grain_layer (fil-source-handle fm_image fm_misc_visible))
+	    (if (null? fio_uni_layer)
+	      (set! fio_uni_layer (fil-source-handle fm_image fm_misc_visible))
 	    )
 
 	    ;Process list initalization
@@ -365,16 +369,18 @@
 
 	    ;String modification and layer renaming
 	    (set! fs_res_str (string-append fs_res_str fs_pref_grain fs_grain_str))
-	    (if (= fm_misc_logout TRUE)
-	      (gimp-drawable-set-name fp_grain_layer fs_res_str)
-	      (gimp-drawable-set-name fp_grain_layer fs_default_str)
-	    )
 	  )
 	)
 
 	;Returning original foreground and background colors
 	(gimp-context-set-foreground fc_fore)
 	(gimp-context-set-background fc_back)
+	(set! fio_uni_layer (car (gimp-layer-new-from-drawable fio_uni_layer fm_image)))
+	(gimp-image-add-layer fm_image fio_uni_layer -1)
+	(if (= fm_misc_logout TRUE)
+	  (gimp-drawable-set-name fio_uni_layer fs_res_str)
+	  (gimp-drawable-set-name fio_uni_layer fs_default_str)
+	)
 	(gimp-displays-flush)
   )
 
@@ -382,8 +388,16 @@
   (set! fk-stage-counter 0)
 
   ;End of execution
-  (gimp-image-undo-enable fm_image)
-  (gimp-context-pop)
+  (if (= fk-batch-state FALSE)
+    (begin
+      (gimp-image-undo-group-end fm_image)
+      (gimp-image-delete fk-sep-image)
+    )
+    (begin
+      (gimp-image-undo-enable fm_image)
+      (gimp-context-pop)
+    )
+  )
 )
 
 ;fil-stage-handle
@@ -485,12 +499,12 @@ stage-handle
   )
 )
 
-;fil-ng-core procedure registration
+;fil-spe-core procedure registration
 (apply script-fu-register
   (append
     (list
-    "fil-ng-core"
-    _"<Image>/Filters/RSS/_ЛИПС 1.6"
+    "fil-spe-core"
+    _"<Image>/Filters/RSS/_ЛИПС 1.7"
     "Лаборатория имитации пленочных снимков"
     )
     fil-credits
@@ -506,7 +520,7 @@ stage-handle
 )
 
 ;Batch core procedure
-(define (fil-ng-batch		;procedure name
+(define (fil-spe-batch		;procedure name
 
 	;Batch execution control
 	fb_dir_in		;input directory address
@@ -562,6 +576,9 @@ stage-handle
 	(run_mode 1)
 	)
 
+	;Going into batch state
+	(set! fk-batch-state TRUE)
+
 	;Cycle begin
 	(while (not (null? filelist))
 	  (let* (
@@ -587,8 +604,8 @@ stage-handle
 		  (set! srclayer (car (gimp-image-get-active-layer img)))
 		)
 
-		;fil-ng-core launching
-		(fil-ng-core 
+		;fil-spe-core launching
+		(fil-spe-core 
 		  img				;>>fm_image
 		  fbm_clr_flag			;>>fm_clr_flag
 		  fbm_clr_id			;>>fm_clr_id
@@ -628,18 +645,23 @@ stage-handle
 		(gimp-image-delete img)
 	  )
 
+
+
 	  ;List offset and cycle's stage ending
 	  (set! filelist (cdr filelist))
 	)
+
+	;Going out from batch state
+	(set! fk-batch-state FALSE)
   )
 )
 
-;fil-ng-batch procedure registration
+;fil-spe-batch procedure registration
 (apply script-fu-register
   (append
     (list
-    "fil-ng-batch"
-    _"<Image>/Filters/RSS/ЛИПС 1.6 _Конвейер"
+    "fil-spe-batch"
+    _"<Image>/Filters/RSS/ЛИПС 1.7 _Конвейер"
     "Конвейерное исполнение ЛИПС"
     )
     fil-credits
@@ -679,22 +701,58 @@ stage-handle
 	(active (car (gimp-image-get-active-layer image)))
 	(exit-layer)
 	)
-	(if (= viz TRUE)
+
+	(if (= fk-batch-state FALSE)
 	  (begin
-	    (gimp-edit-copy-visible image)
-	    (set! exit-layer 
-	      (car
-		(gimp-edit-paste active TRUE)
+	    (set! fk-sep-image (car (gimp-image-duplicate image)))
+	    (gimp-image-undo-disable fk-sep-image)
+	    (if (= viz TRUE)
+	      (begin
+		(gimp-edit-copy-visible image)
+		(set! exit-layer 
+		  (car
+		    (gimp-edit-paste active TRUE)
+		  )
+		)
+		(gimp-floating-sel-to-layer exit-layer)
+		(gimp-drawable-set-name exit-layer "Источник = Видимое")
+		(set! exit-layer
+		  (car
+		    (gimp-layer-new-from-drawable exit-layer fk-sep-image)
+		  )
+		)
+		(gimp-image-add-layer fk-sep-image exit-layer -1)
+	      )
+	      (begin
+		(set! exit-layer 
+		  (car 
+		    (gimp-layer-new-from-drawable active fk-sep-image)
+		  )
+		)
+		(gimp-image-add-layer fk-sep-image exit-layer -1)
+		(gimp-drawable-set-name exit-layer "Источник = Копия")
 	      )
 	    )
-	    (gimp-floating-sel-to-layer exit-layer)
-	    (gimp-drawable-set-name exit-layer "Источник = Видимое")
-	    (gimp-image-raise-layer-to-top image exit-layer)
 	  )
 	  (begin
-	    (set! exit-layer (car (gimp-layer-copy active FALSE)))
-	    (gimp-image-add-layer image exit-layer -1)
-	    (gimp-drawable-set-name exit-layer "Источник = Копия")
+	    (if (= viz TRUE)
+	      (begin
+		(gimp-edit-copy-visible image)
+		(set! exit-layer 
+		  (car
+		    (gimp-edit-paste active TRUE)
+		  )
+		)
+		(gimp-floating-sel-to-layer exit-layer)
+		(gimp-drawable-set-name exit-layer "Источник = Видимое")
+		(gimp-image-raise-layer-to-top image exit-layer)
+	      )
+	      (begin
+		(set! exit-layer (car (gimp-layer-copy active FALSE)))
+		(gimp-image-add-layer image exit-layer -1)
+		(gimp-drawable-set-name exit-layer "Источник = Копия")
+	      )
+	    )
 	  )
 	)
 	(set! exit exit-layer)
