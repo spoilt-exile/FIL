@@ -1,4 +1,4 @@
-;FIL v1.7.0 beta1
+;FIL v1.7.0 beta2
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -85,10 +85,11 @@
 ;===============================================================================================================
 ;Procedures:			Status		Revision	Specs version
 ;==========================================CORE PROCEDURES======================================================
-;fil-spe-core			stable		---		1.6
+;fil-spe-core			stable		---		1.7
 ;fil-stage-handle		stable		---		---
-;fil-source-handle		stable		---		---
 ;fil-spe-batch			stable		---		---
+;fil-source-handle		stable		---		---
+;fil-plugs-handle		alpha		---		---
 ;===========================================PRE-PROCESSES=======================================================
 ;fil-pre-xps			stable		r0		1.6
 ;fil-pre-vignette		stable		r3		1.6
@@ -174,13 +175,16 @@
     (list "Зерно+: усиленный" 	(quote (set! fio_uni_layer (fil-int-adv_grain fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore TRUE))))
 
     ;Process "Sulfide: normal" with proc_id=3
-    (list "Сульфид: обычный"	(quote (set! fio_uni_layer (fil-int-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE))))
+    (list "Сульфид: обычный"	(quote (set! fio_uni_layer (fil-int-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE FALSE))))
 
     ;Process "Sulfide: large scale" with proc_id=4
-    (list "Сульфид: крупный"	(quote (set! fio_uni_layer (fil-int-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 3.1 FALSE))))
+    (list "Сульфид: крупный"	(quote (set! fio_uni_layer (fil-int-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 3.1 FALSE FALSE))))
 
     ;Process "Sulfide: grunge" with proc_id=5
-    (list "Сульфид: гранж"	(quote (set! fio_uni_layer (fil-int-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.7 TRUE))))
+    (list "Сульфид: гранж"	(quote (set! fio_uni_layer (fil-int-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.7 TRUE FALSE))))
+
+    ;Process "Sulfide; scratches" with proc_id=6
+    (list "Сульфид: царапины"	(quote (set! fio_uni_layer (fil-int-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 3.2 FALSE TRUE))))
   )
 )
 
@@ -201,6 +205,33 @@
 
 ;Core state for batch mode
 (define fk-batch-state FALSE)
+
+
+;Plugin checking stage
+
+
+;G'MIC plugin integration activator
+(define fk-gmic-def FALSE)
+(if (defined? 'plug-in-gmic)
+  (set! fk-gmic-def TRUE)
+)
+
+;Fix-CA plugin integration activator
+(define fk-fixca-def FALSE)
+(if (defined? 'Fix-CA)
+  (set! fk-gmic-def TRUE)
+)
+
+;Plugin information global list
+(define fk-plugs-list
+  (list
+    ;G'MIC info entry
+    (list "G'MIC" "http://registry.gimp.org/node/13469" fk-gmic-def)
+
+    ;Fix-CA info entry
+    (list "Fix-CA" "http://registry.gimp.org/node/3726" fk-gmic-def)
+  )
+)
 
 ;FIL core procedure
 (define (fil-spe-core		;procedure name;
@@ -232,11 +263,11 @@
   ;Core start
   (if (= fk-batch-state FALSE)
       (gimp-image-undo-group-start fm_image)
-    (begin
-      (gimp-context-push)
-      (gimp-image-undo-disable fm_image)
-      (set! fk-sep-image fm_image)
-    )
+      (begin
+	(gimp-context-push)
+	(gimp-image-undo-disable fm_image)
+	(set! fk-sep-image fm_image)
+      )
   )
 
   ;Variables declaration;
@@ -478,7 +509,7 @@ stage-handle
   (list
   "Непочатов Станислав"
   "GPLv3"
-  "6 Август 2010"
+  "19 Август 2010"
   )
 )
 
@@ -504,7 +535,7 @@ stage-handle
   (append
     (list
     "fil-spe-core"
-    _"<Image>/Filters/RSS/_ЛИПС 1.7"
+    _"<Image>/Filters/RSS/_ЛИПС"
     "Лаборатория имитации пленочных снимков"
     )
     fil-credits
@@ -661,7 +692,7 @@ stage-handle
   (append
     (list
     "fil-spe-batch"
-    _"<Image>/Filters/RSS/ЛИПС 1.7 _Конвейер"
+    _"<Image>/Filters/RSS/ЛИПС _Конвейер"
     "Конвейерное исполнение ЛИПС"
     )
     fil-credits
@@ -758,6 +789,57 @@ stage-handle
 	(set! exit exit-layer)
   )
 exit
+)
+
+;fil-plugs-handle
+;CORE MODULE
+;Hasn't arguments
+(define (fil-plugs-handle)
+  (let* (
+	(finded " найден.")
+	(not_finded " не найден.\nПожалуйста установите плагин используя ссылку:")
+	(line "\n")
+	(space " ")
+	(temp_list)
+	(temp_entry)
+	(plug_name)
+	(plug_url)
+	(plug_var)
+	(plug_message "")
+	)
+	(set! temp_list fk-plugs-list)
+	(while (not (null? temp_list))
+	  (set! temp_entry (car temp_list))
+	  (set! plug_name (car temp_entry))
+	  (set! plug_url (cadr temp_entry))
+	  (set! plug_var (caddr temp_entry))
+	  (if (= plug_var TRUE)
+	    (set! plug_message (string-append plug_message plug_name space finded))
+	    (begin
+	      (set! plug_message (string-append plug_message plug_name space not_finded line plug_url))
+	    )
+	  )
+	  (set! plug_message (string-append plug_message line))
+	  (set! temp_list (cdr temp_list))
+	)
+	(set! plug_message (string-append plug_message line "ЛИПС v1.7.0"))
+	(gimp-message plug_message)
+  )
+)
+
+;fil-plugs-handle registration procedure
+(apply script-fu-register
+  (append
+    (list
+    "fil-plugs-handle"
+    _"<Image>/Filters/RSS/ЛИПС _Проверка плагинов"
+    "Проверка целостности интеграции ЛИПС с бинарными плагинами"
+    )
+    fil-credits
+    (list
+    ""
+    )
+  )
 )
 
 ;Core section end
@@ -1128,9 +1210,10 @@ adv-exit
 ;COLOR - foreground color;
 ;REAL - grain scale;
 ;BOOLEAN - grunge-mode switch;
+;BOOLEAN - scratch-mode switch;
 ;Returned variables:
 ;LAYER - processed layer;
-(define (fil-int-sulfide image layer imh imw foreground scale_step grunge_switch)
+(define (fil-int-sulfide image layer imh imw foreground scale_step grunge_switch scratch_switch)
 (define sulf-exit)
   (let* (
 	(sc_imh (/ imh scale_step))
@@ -1141,6 +1224,13 @@ adv-exit
 	(grain_mask)
 	(rel_step (if (> imh imw) (/ imh 1100) (/ imw 1100)))
 	)
+
+	(if (= scratch_switch TRUE)
+	  (if (= fk-gmic-def TRUE)
+	    (plug-in-gmic 1 image layer 1 "-to_rgb -stripes_y 3")
+	  )
+	)
+
 	(set! scale_layer
 	  (car 
 	    (gimp-layer-new image sc_imw sc_imh 0 "Слой масштаба" 100 0)
