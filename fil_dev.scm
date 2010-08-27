@@ -1,4 +1,4 @@
-;FIL v1.7.0 beta3
+;FIL v1.7.0 beta4
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -23,10 +23,10 @@
 ; - core redisighn;					(DONE)
 ; - binary plugin integration (important!);		(DONE)
 ; - port some processes;				(DONE)
-; - API modification;
-; - random mode in batch process;
+; - API modification;					(DONE)
+; - random mode in batch process;			(DONE)
 ; - stage invert execution;				(DROPED)
-; - "Dram" process developing
+; - "Dram" process developing;				(DONE)
 ;Version history:
 ;===============================================================================================================
 ;ver. 0.3 (December 19 2009)
@@ -90,31 +90,34 @@
 ;Procedures:			Status		Revision	Specs version
 ;==========================================CORE PROCEDURES======================================================
 ;fil-spe-core			stable		---		1.7
-;fil-stage-handle		stable		---		---
 ;fil-spe-batch			stable		---		---
+;fil-stage-handle		stable		---		---
 ;fil-source-handle		stable		---		---
 ;fil-plugs-handle		stable		---		---
 ;===========================================PRE-PROCESSES=======================================================
-;fil-pre-xps			stable		r0		1.7
-;fil-pre-vignette		stable		r3		1.7
-;fil-pre-badblur		stable		r1		1.7
+;fil-non-xps			stable		r0		1.7
+;fil-non-vignette		stable		r3		1.7
+;fil-nonfx-badblur		stable		r3		1.7
 ;==========================================COLOR PROCESSES======================================================
-;fil-int-sov			stable		r5		1.7
-;fil-int-gray			stable		r2		1.7
-;fil-int-lomo			stable		r2		1.7
-;fil-int-sepia			stable		r4		1.7
-;fil-int-duo			stable		r1		1.7
-;fil-int-vintage		stable		r0		1.7
-;fil-int-chrome			stable		r0		1.7
+;fil-clr-sov			stable		r5		1.7
+;fil-clr-gray			stable		r2		1.7
+;fil-clr-lomo			stable		r2		1.7
+;fil-clr-sepia			stable		r4		1.7
+;fil-clr-duo			stable		r1		1.7
+;fil-clr-vintage		stable		r0		1.7
+;fil-clr-chrome			stable		r1		1.7
+;fil-clr-dram_c			stable		r0		1.7
 ;==========================================GRAIN PROCESSES======================================================
-;fil-int-simplegrain		stable		r2		1.7
-;fil-int-grain_plus		stable		r4		1.7
-;fil-int-sulfide		stable		r3		1.7
+;fil-grn-simplegrain		stable		r3		1.7
+;fil-grn-grain_plus		stable		r4		1.7
+;fil-grnfx-sulfide		stable		r3		1.7
 ;=====================================FIL module classification=================================================
-; -pre - pre-process.
-; -int - internal procedure (locate in this file).
-; -ext - externel procedure (somewhere out of this file).
-; -dep - external procedure which depend on binary plug-ins.
+; -non - non-register process.
+; -clr - color process.
+; -grn - grain process.
+; -nonfx - non-register process which  uses plugins.
+; -clrfx - color process which uses plugins.
+; -grnfx - grain process which uses plugins.
 ;=================================FIL 1.7 modules requirements list:============================================
 ; * process can use binary plugin procedures by using core permissions in fk-*-def variables.
 ; * if process can't work without some plugin then error message should appear.
@@ -131,7 +134,16 @@
 ;fk-clr-stage		YES				1
 ;fk-grain-stage		YES				2
 ;===============================================================================================================
-
+(1.7.0 beta4):
+* API has been modificated;
+* batch process randomization;
+* "Dram" process added (color process);
+* module classification were updated;
+* fil-nonfx-badblur  second and third revisions;
+* "Photochrom: gray" profile added;
+* Fix-CA plugin activation fixed;
+* visible extracting in separate image was fixed;
+* "Photochrom" first revision;
 ;Core global variables
 
 ;Core stage register with stage_id=1 (color stage);
@@ -140,43 +152,58 @@
   (list
     
     ;Process "SOV: normal" with proc_id=0
-    (list "СОВ: обычный" 	(quote (set! fio_uni_layer (fil-int-sov fk-sep-image fio_uni_layer fc_imh fc_imw 60 65))))
+    (list "СОВ: обычный" 		TRUE	(quote (fil-clr-sov fk-sep-image fio_uni_layer fc_imh fc_imw 60 65)))
 
     ;Process "SOV: light" with proc_id=1
-    (list "СОВ: легкий" 	(quote (set! fio_uni_layer (fil-int-sov fk-sep-image fio_uni_layer fc_imh fc_imw 30 35))))
+    (list "СОВ: легкий" 		TRUE	(quote (fil-clr-sov fk-sep-image fio_uni_layer fc_imh fc_imw 30 35)))
 
     ;Process "B/W" with proc_id=2
-    (list "Ч/Б" 		(quote (fil-int-gray fk-sep-image fio_uni_layer)))
+    (list "Ч/Б" 			FALSE	(quote (fil-clr-gray fk-sep-image fio_uni_layer)))
 
     ;Process "Lomo: XPro Green" with proc_id=3
-    (list "Ломо: XPro Зеленый" 	(quote (fil-int-lomo fk-sep-image fio_uni_layer 0)))
+    (list "Ломо: XPro Зеленый" 		FALSE	(quote (fil-clr-lomo fk-sep-image fio_uni_layer 0)))
 
     ;Process "Lomo: XPro Autumn" with proc_id=4
-    (list "Ломо: XPro Осень" 	(quote (fil-int-lomo fk-sep-image fio_uni_layer 1)))
+    (list "Ломо: XPro Осень" 		FALSE	(quote (fil-clr-lomo fk-sep-image fio_uni_layer 1)))
 
     ;Process "Lomo: Old Red" with proc_id=5
-    (list "Ломо: красноватый" 	(quote (fil-int-lomo fk-sep-image fio_uni_layer 2)))
+    (list "Ломо: красноватый" 		FALSE	(quote (fil-clr-lomo fk-sep-image fio_uni_layer 2)))
 
     ;Process "Sepia: normal" with proc_id=6
-    (list "Сепия: обычная" 	(quote (set! fio_uni_layer (fil-int-sepia fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore FALSE))))
+    (list "Сепия: обычная" 		TRUE	(quote (fil-clr-sepia fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore FALSE)))
 
     ;Process "Sepia: with imitation" with proc_id=7
-    (list "Сепия: с имитацией"	(quote (set! fio_uni_layer (fil-int-sepia fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore TRUE))))
+    (list "Сепия: с имитацией"		TRUE	(quote (fil-clr-sepia fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore TRUE)))
 
     ;Process "Duotone: normal" with proc_id=8
-    (list "Двутон: обычный" 	(quote (set! fio_uni_layer (fil-int-duo fk-sep-image fio_uni_layer 75 '(200 175 140) '(80 102 109)))))
+    (list "Двутон: обычный" 		TRUE	(quote (fil-clr-duo fk-sep-image fio_uni_layer 75 '(200 175 140) '(80 102 109))))
 
     ;Process "Duotone: soft" with proc_id=9
-    (list "Двутон: мягкий" 	(quote (set! fio_uni_layer (fil-int-duo fk-sep-image fio_uni_layer 30 '(200 175 140) '(80 102 109)))))
+    (list "Двутон: мягкий" 		TRUE	(quote (fil-clr-duo fk-sep-image fio_uni_layer 30 '(200 175 140) '(80 102 109))))
 
     ;Process "Duotone: user colors" with proc_id=10
-    (list "Двутон: свои цвета" 	(quote (set! fio_uni_layer (fil-int-duo fk-sep-image fio_uni_layer 55 fc_fore fc_back))))
+    (list "Двутон: свои цвета" 		TRUE	(quote (fil-clr-duo fk-sep-image fio_uni_layer 55 fc_fore fc_back)))
 
     ;Process "Vintage" with proc_id=11
-    (list "Винтаж"		(quote (set! fio_uni_layer (fil-int-vintage fk-sep-image fio_uni_layer fc_imh fc_imw 17 20 59 TRUE))))
+    (list "Винтаж"			TRUE	(quote (fil-clr-vintage fk-sep-image fio_uni_layer fc_imh fc_imw 17 20 59 TRUE)))
 
-    ;Process "Photochrome" with proc_id=12
-    (list "Фотохром"		(quote (set! fio_uni_layer (fil-int-chrome fk-sep-image fio_uni_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 FALSE FALSE))))
+    ;Process "Photochrom: normal" with proc_id=12
+    (list "Фотохром: обычный"		TRUE	(quote (fil-clr-chrome fk-sep-image fio_uni_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 FALSE FALSE)))
+
+    ;Process "Photochrom: retro" with proc_id=13
+    (list "Фотохром: ретро"		TRUE	(quote (fil-clr-chrome fk-sep-image fio_uni_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 FALSE TRUE)))
+
+    ;Process "Photochrom: gray" with proc_id=14
+    (list "Фотохром: блеклый"		TRUE	(quote (fil-clr-chrome fk-sep-image fio_uni_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 TRUE FALSE)))
+
+    ;Process "Photochrom: user colors" with proc_id=15
+    (list "Фотохром: свои цвета"	TRUE	(quote (fil-clr-chrome fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore fc_back 60 60 0 100 FALSE FALSE)))
+
+    ;Process "Dram: normal" with proc_id=16
+    (list "Драм: обычный"		TRUE	(quote (fil-clr-dram_c fk-sep-image fio_uni_layer '(93 103 124))))
+
+    ;Process "Dram: user colors" with proc_id=17
+    (list "Драм: свои цвета"		TRUE	(quote (fil-clr-dram_c fk-sep-image fio_uni_layer fc_fore)))
   )
 )
 
@@ -186,25 +213,25 @@
   (list
 
     ;Process "Simple grain" with proc_id=0
-    (list "Простая зернистость"	(quote (fil-int-simplegrain fk-sep-image fio_uni_layer)))
+    (list "Простая зернистость"		FALSE	(quote (fil-grn-simplegrain fk-sep-image fio_uni_layer)))
 
     ;Process "Grain+: normal" with proc_id=1
-    (list "Зерно+: обычный" 	(quote (set! fio_uni_layer (fil-int-adv_grain fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore FALSE))))
+    (list "Зерно+: обычный" 		TRUE	(quote (fil-grn-adv_grain fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore FALSE)))
 
     ;Process "Grain+: amplified" with proc_id=2
-    (list "Зерно+: усиленный" 	(quote (set! fio_uni_layer (fil-int-adv_grain fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore TRUE))))
+    (list "Зерно+: усиленный" 		TRUE	(quote (fil-grn-adv_grain fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore TRUE)))
 
     ;Process "Sulfide: normal" with proc_id=3
-    (list "Сульфид: обычный"	(quote (set! fio_uni_layer (fil-int-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE FALSE))))
+    (list "Сульфид: обычный"		TRUE	(quote (fil-grn-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE FALSE)))
 
     ;Process "Sulfide: large scale" with proc_id=4
-    (list "Сульфид: крупный"	(quote (set! fio_uni_layer (fil-int-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 3.1 FALSE FALSE))))
+    (list "Сульфид: крупный"		TRUE	(quote (fil-grn-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 3.1 FALSE FALSE)))
 
     ;Process "Sulfide: grunge" with proc_id=5
-    (list "Сульфид: гранж"	(quote (set! fio_uni_layer (fil-int-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.7 TRUE FALSE))))
+    (list "Сульфид: гранж"		TRUE	(quote (fil-grn-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.7 TRUE FALSE)))
 
     ;Process "Sulfide; scratches" with proc_id=6
-    (list "Сульфид: царапины"	(quote (set! fio_uni_layer (fil-int-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 3.2 FALSE TRUE))))
+    (list "Сульфид: царапины"		TRUE	(quote (fil-grn-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE TRUE)))
   )
 )
 
@@ -239,7 +266,7 @@
 ;Fix-CA plugin integration activator
 (define fk-fixca-def FALSE)
 (if (defined? 'Fix-CA)
-  (set! fk-gmic-def TRUE)
+  (set! fk-fixca-def TRUE)
 )
 
 ;Plugin information global list
@@ -249,7 +276,7 @@
     (list "G'MIC" "http://registry.gimp.org/node/13469" fk-gmic-def)
 
     ;Fix-CA info entry
-    (list "Fix-CA" "http://registry.gimp.org/node/3726" fk-gmic-def)
+    (list "Fix-CA" "http://registry.gimp.org/node/3726" fk-fixca-def)
   )
 )
 
@@ -308,8 +335,9 @@
 	(fx_grain_list)						;List of variables recived from fil-stage-handle while grain stage
 	(fx_grain_exp)						;grain stage execution code block
 
-	;Stages I/O layer
+	;I/O variables
 	(fio_uni_layer)						;single layer for all stages
+	(fio_return_flag)					;flag for automatic layer returning
 
 	;Option indication string prefixes
 	(fs_pref_pre "-п ")					;pre-stage option prefix
@@ -344,7 +372,7 @@
 	    ;Exposure correction launching
 	    (if (not (= fm_pre_xps_control 0))
 	      (begin
-		(fil-pre-xps fk-sep-image fio_uni_layer fm_pre_xps_control)
+		(fil-non-xps fk-sep-image fio_uni_layer fm_pre_xps_control)
 		(set! fs_xps_str (string-append fs_xps_str (if (> fm_pre_xps_control 0) "+" "-") (number->string fm_pre_xps_control)))
 		(if (> (string-length fs_xps_str) 10)
 		  (set! fs_xps_str (substring fs_xps_str 0 11))
@@ -357,7 +385,7 @@
 	    (if (= fm_pre_vign_flag TRUE)
 	      (if (> fm_pre_vign_opc 0)
 		(begin
-		  (set! fio_uni_layer (fil-pre-vignette fk-sep-image fio_uni_layer fc_imh fc_imw fm_pre_vign_opc fm_pre_vign_rad fm_pre_vign_soft fc_fore))
+		  (set! fio_uni_layer (fil-non-vignette fk-sep-image fio_uni_layer fc_imh fc_imw fm_pre_vign_opc fm_pre_vign_rad fm_pre_vign_soft fc_fore))
 		  (set! fs_res_str (string-append fs_res_str fs_vign_str))
 		)
 	      )
@@ -366,7 +394,7 @@
 	    ;Blur launching
 	    (if (> fm_pre_blur_step 0)
 	      (begin
-		(fil-pre-badblur fk-sep-image fio_uni_layer fc_imh fc_imw fm_pre_blur_step)
+		(fil-non-badblur fk-sep-image fio_uni_layer fc_imh fc_imw fm_pre_blur_step)
 		(set! fs_res_str (string-append fs_res_str fs_blur_str (number->string (+ fm_pre_blur_step 1)) " "))
 	      )
 	    )
@@ -388,10 +416,14 @@
 	    ;Process list initalization
 	    (set! fx_clr_list (fil-stage-handle FALSE fk-stage-counter fm_clr_id))
 	    (set! fs_clr_str (car fx_clr_list))
-	    (set! fx_clr_exp (cadr fx_clr_list))
+	    (set! fio_return_flag (cadr fx_clr_list))
+	    (set! fx_clr_exp (caddr fx_clr_list))
 
 	    ;Color process execution
-	    (eval fx_clr_exp)
+	    (if (= fio_return_flag TRUE)
+	      (set! fio_uni_layer (eval fx_clr_exp))
+	      (eval fx_clr_exp)
+	    )
 
 	    ;String modification and layer renaming
 	    (set! fs_res_str (string-append fs_res_str fs_pref_clr fs_clr_str " "))
@@ -413,10 +445,14 @@
 	    ;Process list initalization
 	    (set! fx_grain_list (fil-stage-handle FALSE fk-stage-counter fm_grain_id))
 	    (set! fs_grain_str (car fx_grain_list))
-	    (set! fx_grain_exp (cadr fx_grain_list))
+	    (set! fio_return_flag (cadr fx_grain_list))
+	    (set! fx_grain_exp (caddr fx_grain_list))
 
 	    ;Grain process execution
-	    (eval fx_grain_exp)
+	    (if (= fio_return_flag TRUE)
+	      (set! fio_uni_layer (eval fx_grain_exp))
+	      (eval fx_grain_exp)
+	    )
 
 	    ;String modification and layer renaming
 	    (set! fs_res_str (string-append fs_res_str fs_pref_grain fs_grain_str))
@@ -447,6 +483,242 @@
     (begin
       (gimp-image-undo-enable fm_image)
       (gimp-context-pop)
+    )
+  )
+)
+
+;FIL registation part resposible for author rights
+(define fil-credits
+  (list
+  "Непочатов Станислав"
+  "GPLv3"
+  "19 Август 2010"
+  )
+)
+
+;FIL registation part responsible for procedure tuning
+(define fil-controls
+  (list
+  SF-TOGGLE	"Стадия цветокорректировки"	TRUE
+  SF-OPTION 	"Цветовой процесс" 		(fil-stage-handle TRUE 1 0)
+  SF-TOGGLE	"Стадия зернистости"		TRUE
+  SF-OPTION	"Процесс зернистости"		(fil-stage-handle TRUE 2 0)
+  SF-TOGGLE	"Включить виньетирование"	FALSE
+  SF-ADJUSTMENT	"Радиус виньетирования (%)"	'(100 85 125 5 10 1 0)
+  SF-ADJUSTMENT	"Мягкость виньетирования (%)"	'(33 20 45 2 5 1 0)
+  SF-ADJUSTMENT	"Плотность виньетирования"	'(100 0 100 10 25 1 0)
+  SF-OPTION	"Cтепень размытия краев"	'("Отключено" "x1" "x2" "x3")
+  SF-ADJUSTMENT	"Коррекция экспозиции"		'(0 -2 2 0.1 0.3 1 0)
+  SF-TOGGLE	"Записать опции в имя слоя"	FALSE
+  )
+)
+
+;fil-spe-core procedure registration
+(apply script-fu-register
+  (append
+    (list
+    "fil-spe-core"
+    _"<Image>/Filters/RSS/_ЛИПС 1.7"
+    "Лаборатория имитации пленочных снимков"
+    )
+    fil-credits
+    (list
+    "RGB,RGBA*"
+    SF-IMAGE	"Изображение"			0
+    )
+    fil-controls
+    (list
+    SF-TOGGLE	"Работать с видимым"		FALSE
+    )
+  )
+)
+
+;Batch core procedure
+(define (fil-spe-batch		;procedure name
+
+	;Batch execution control
+	fb_dir_in		;input directory address
+	fb_input_format		;input format;
+	fb_dir_out		;output directory address;
+	fb_out_format		;output format;
+
+	;Color stage control
+	fbm_clr_flag		;color proceess execution switch;
+	fbm_clr_id		;color process number;
+
+	;Grain stage control
+	fbm_grain_flag		;grain proceess execution switch;
+	fbm_grain_id		;grain process number;
+
+	;Управление пре-процессами
+	fbm_pre_vign_flag	;vignette activation switch;;
+	fbm_pre_vign_rad	;vignette radius in percents;
+	fbm_pre_vign_soft	;vignette softness;
+	fbm_pre_vign_opc	;vingette opacity;
+	fbm_pre_blur_step	;border blur control;
+	fbm_pre_xps_control	;exposure correction control;
+	
+	;Additional options
+	fbm_misc_logout		;option output swtitch;
+	fbm_misc_random		;random mode switch;
+	)
+
+  ;Input format definition
+  (define input-ext)
+  (cond
+    ((= fb_input_format 0) (set! input-ext "*"))
+    ((= fb_input_format 1) (set! input-ext "[jJ][pP][gG]"))
+    ((= fb_input_format 2) (set! input-ext "[bB][mM][pP]"))
+    ((= fb_input_format 3) (set! input-ext "[xX][cC][fF]"))
+  )
+
+  ;Output format definition
+  (define out-ext)
+  (cond
+    ((= fb_out_format 0) (set! out-ext "jpg"))
+    ((= fb_out_format 1) (set! out-ext "png"))
+    ((= fb_out_format 2) (set! out-ext "tif"))
+    ((= fb_out_format 3) (set! out-ext "bmp"))
+    ((= fb_out_format 4) (set! out-ext "xcf"))
+    ((= fb_out_format 5) (set! out-ext "psd"))
+  )
+
+  ;Declaration of variables
+  (let*	(
+	(dir_os (if (equal? (substring gimp-dir 0 1) "/") "/" "\\"))
+	(pattern (string-append fb_dir_in dir_os "*." input-ext))
+	(filelist (cadr (file-glob pattern 1)))
+	(run_mode 1)
+	)
+
+	;Going into batch state
+	(set! fk-batch-state TRUE)
+
+	;Cycle begin
+	(while (not (null? filelist))
+	  (let* (
+		(cur_target (car filelist))
+		(img (car (gimp-file-load 1 cur_target cur_target)))
+		(srclayer)
+		(filename (car (gimp-image-get-filename img)))
+		(target_out)
+		(file)
+		(res_layer)
+		)
+
+		;Preliminary layer merging
+		(if (> fb_input_format 2)
+		  (begin
+		    (set! srclayer (car (gimp-image-get-active-layer img)))
+		    (gimp-edit-copy-visible img)
+		    (set! srclayer (car (gimp-edit-paste srclayer TRUE)))
+		    (gimp-floating-sel-to-layer srclayer)
+		    (gimp-drawable-set-name srclayer "Viz-src")
+		    (gimp-image-raise-layer-to-top img srclayer)
+		  )
+		  (set! srclayer (car (gimp-image-get-active-layer img)))
+		)
+
+		;fil-spe-core launching
+		(if (= fbm_misc_random TRUE)
+		  (fil-spe-core
+		    img							;>>fm_image
+		    fbm_clr_flag					;>>fm_clr_flag
+		    (random (length fk-clr-stage))			;>>fm_clr_id
+		    fbm_grain_flag					;>>fm_grain_flag
+		    (random (length fk-grain-stage))			;>>fm_grain_id
+		    (random 1)						;>>fm_pre_vign_flag
+		    fbm_pre_vign_rad					;>>fm_pre_vign_rad
+		    fbm_pre_vign_soft					;>>fm_pre_vign_soft
+		    fbm_pre_vign_opc					;>>fm_pre_vign_opc
+		    fbm_pre_blur_step					;>>fm_pre_blur_step
+		    fbm_pre_xps_control					;>>fm_pre_xps_control
+		    fbm_misc_logout					;>>fm_misc_logout
+		    FALSE						;>>fm_misc_visible
+		  )
+		  (fil-spe-core 
+		    img							;>>fm_image
+		    fbm_clr_flag					;>>fm_clr_flag
+		    fbm_clr_id						;>>fm_clr_id
+		    fbm_grain_flag					;>>fm_grain_flag
+		    fbm_grain_id					;>>fm_grain_id
+		    fbm_pre_vign_flag					;>>fm_pre_vign_flag
+		    fbm_pre_vign_rad					;>>fm_pre_vign_rad
+		    fbm_pre_vign_soft					;>>fm_pre_vign_soft
+		    fbm_pre_vign_opc					;>>fm_pre_vign_opc
+		    fbm_pre_blur_step					;>>fm_pre_blur_step
+		    fbm_pre_xps_control					;>>fm_pre_xps_control
+		    fbm_misc_logout					;>>fm_misc_logout
+		    FALSE						;>>fm_misc_visible
+		  )
+		)
+
+		;Final layers merging
+		(if (< fb_out_format 4)
+		  (set! res_layer (car (gimp-image-merge-visible-layers img 0)))
+		  (set! res_layer (car (gimp-image-get-active-layer img)))
+		)
+
+		;String proceessting and construction output path
+		(set! file (substring filename (string-length fb_dir_in) (- (string-length filename) 4 )))
+		(set! target_out (string-append fb_dir_out "/" file "_ЛИПС." out-ext))
+
+		;File saving
+		(cond
+		  ((= fb_out_format 0) (file-jpeg-save 1 img res_layer target_out target_out 1 0 1 1 "" 2 1 0 0))
+		  ((= fb_out_format 1) (file-png-save-defaults 1 img res_layer target_out target_out))
+		  ((= fb_out_format 2) (file-tiff-save 1 img res_layer target_out target_out 1))
+		  ((= fb_out_format 3) (file-bmp-save 1 img res_layer target_out target_out))
+		  ((= fb_out_format 4) (gimp-xcf-save 1 img res_layer target_out target_out))
+		  ((= fb_out_format 5) (file-psd-save 1 img res_layer target_out target_out 1 0))
+		)
+
+		;Image remocing
+		(gimp-image-delete img)
+	  )
+
+
+
+	  ;List offset and cycle's stage ending
+	  (set! filelist (cdr filelist))
+	)
+
+	;Going out from batch state
+	(set! fk-batch-state FALSE)
+  )
+)
+
+;fil-spe-batch procedure registration
+(apply script-fu-register
+  (append
+    (list
+    "fil-spe-batch"
+    _"<Image>/Filters/RSS/ЛИПС 1.7 _Конвейер"
+    "Конвейерное исполнение ЛИПС"
+    )
+    fil-credits
+    (list
+    ""
+    SF-DIRNAME	"Папка-источник"	"/home/spoilt/Документы/Batch/IN"
+    SF-OPTION	"Входящий формат"	'(
+					"*"
+					"JPG"
+					"TIFF"
+					"XCF"
+					)
+    SF-DIRNAME	"Папка-назначение"	"/home/spoilt/Документы/Batch/OUT"
+    SF-OPTION	"Формат сохранения"	'(
+					"JPG"
+					"PNG"
+					"TIF"
+					"BMP"
+					"XCF"
+					"PSD"
+					)
+    )
+    fil-controls
+    (list
+    SF-TOGGLE	"Случайный режим"	FALSE
     )
   )
 )
@@ -524,221 +796,6 @@
 stage-handle
 )
 
-;FIL registation part resposible for author rights
-(define fil-credits
-  (list
-  "Непочатов Станислав"
-  "GPLv3"
-  "19 Август 2010"
-  )
-)
-
-;FIL registation part responsible for procedure tuning
-(define fil-controls
-  (list
-  SF-TOGGLE	"Стадия цветокорректировки"	TRUE
-  SF-OPTION 	"Цветовой процесс" 		(fil-stage-handle TRUE 1 0)
-  SF-TOGGLE	"Стадия зернистости"		TRUE
-  SF-OPTION	"Процесс зернистости"		(fil-stage-handle TRUE 2 0)
-  SF-TOGGLE	"Включить виньетирование"	FALSE
-  SF-ADJUSTMENT	"Радиус виньетирования (%)"	'(100 85 125 5 10 1 0)
-  SF-ADJUSTMENT	"Мягкость виньетирования (%)"	'(33 20 45 2 5 1 0)
-  SF-ADJUSTMENT	"Плотность виньетирования"	'(100 0 100 10 25 1 0)
-  SF-OPTION	"Cтепень размытия краев"	'("Отключено" "x1" "x2" "x3")
-  SF-ADJUSTMENT	"Коррекция экспозиции"		'(0 -2 2 0.1 0.3 1 0)
-  SF-TOGGLE	"Записать опции в имя слоя"	FALSE
-  )
-)
-
-;fil-spe-core procedure registration
-(apply script-fu-register
-  (append
-    (list
-    "fil-spe-core"
-    _"<Image>/Filters/RSS/_ЛИПС"
-    "Лаборатория имитации пленочных снимков"
-    )
-    fil-credits
-    (list
-    "RGB,RGBA*"
-    SF-IMAGE	"Изображение"			0
-    )
-    fil-controls
-    (list
-    SF-TOGGLE	"Работать с видимым"		FALSE
-    )
-  )
-)
-
-;Batch core procedure
-(define (fil-spe-batch		;procedure name
-
-	;Batch execution control
-	fb_dir_in		;input directory address
-	fb_input_format		;input format;
-	fb_dir_out		;output directory address;
-	fb_out_format		;output format;
-
-	;Color stage control
-	fbm_clr_flag		;color proceess execution switch;
-	fbm_clr_id		;color process number;
-
-	;Grain stage control
-	fbm_grain_flag		;grain proceess execution switch;
-	fbm_grain_id		;grain process number;
-
-	;Управление пре-процессами
-	fbm_pre_vign_flag	;vignette activation switch;;
-	fbm_pre_vign_rad	;vignette radius in percents;
-	fbm_pre_vign_soft	;vignette softness;
-	fbm_pre_vign_opc	;vingette opacity;
-	fbm_pre_blur_step	;border blur control;
-	fbm_pre_xps_control	;exposure correction control;
-	
-	;Additional options
-	fbm_misc_logout		;visible switch;
-	)
-
-  ;Input format definition
-  (define input-ext)
-  (cond
-    ((= fb_input_format 0) (set! input-ext "*"))
-    ((= fb_input_format 1) (set! input-ext "[jJ][pP][gG]"))
-    ((= fb_input_format 2) (set! input-ext "[bB][mM][pP]"))
-    ((= fb_input_format 3) (set! input-ext "[xX][cC][fF]"))
-  )
-
-  ;Output format definition
-  (define out-ext)
-  (cond
-    ((= fb_out_format 0) (set! out-ext "jpg"))
-    ((= fb_out_format 1) (set! out-ext "png"))
-    ((= fb_out_format 2) (set! out-ext "tif"))
-    ((= fb_out_format 3) (set! out-ext "bmp"))
-    ((= fb_out_format 4) (set! out-ext "xcf"))
-    ((= fb_out_format 5) (set! out-ext "psd"))
-  )
-
-  ;Declaration of variables
-  (let*	(
-	(dir_os (if (equal? (substring gimp-dir 0 1) "/") "/" "\\"))
-	(pattern (string-append fb_dir_in dir_os "*." input-ext))
-	(filelist (cadr (file-glob pattern 1)))
-	(run_mode 1)
-	)
-
-	;Going into batch state
-	(set! fk-batch-state TRUE)
-
-	;Cycle begin
-	(while (not (null? filelist))
-	  (let* (
-		(cur_target (car filelist))
-		(img (car (gimp-file-load 1 cur_target cur_target)))
-		(srclayer)
-		(filename (car (gimp-image-get-filename img)))
-		(target_out)
-		(file)
-		(res_layer)
-		)
-
-		;Preliminary layer merging
-		(if (> fb_input_format 2)
-		  (begin
-		    (set! srclayer (car (gimp-image-get-active-layer img)))
-		    (gimp-edit-copy-visible img)
-		    (set! srclayer (car (gimp-edit-paste srclayer TRUE)))
-		    (gimp-floating-sel-to-layer srclayer)
-		    (gimp-drawable-set-name srclayer "Viz-src")
-		    (gimp-image-raise-layer-to-top img srclayer)
-		  )
-		  (set! srclayer (car (gimp-image-get-active-layer img)))
-		)
-
-		;fil-spe-core launching
-		(fil-spe-core 
-		  img				;>>fm_image
-		  fbm_clr_flag			;>>fm_clr_flag
-		  fbm_clr_id			;>>fm_clr_id
-		  fbm_grain_flag		;>>fm_grain_flag
-		  fbm_grain_id			;>>fm_grain_id
-		  fbm_pre_vign_flag		;>>fm_pre_vign_flag
-		  fbm_pre_vign_rad		;>>fm_pre_vign_rad
-		  fbm_pre_vign_soft		;>>fm_pre_vign_soft
-		  fbm_pre_vign_opc		;>>fm_pre_vign_opc
-		  fbm_pre_blur_step		;>>fm_pre_blur_step
-		  fbm_pre_xps_control		;>>fm_pre_xps_control
-		  fbm_misc_logout		;>>fm_misc_logout
-		  FALSE				;>>fm_misc_visible
-		)
-
-		;Final layers merging
-		(if (< fb_out_format 4)
-		  (set! res_layer (car (gimp-image-merge-visible-layers img 0)))
-		  (set! res_layer (car (gimp-image-get-active-layer img)))
-		)
-
-		;String proceessting and construction output path
-		(set! file (substring filename (string-length fb_dir_in) (- (string-length filename) 4 )))
-		(set! target_out (string-append fb_dir_out "/" file "_ЛИПС." out-ext))
-
-		;File saving
-		(cond
-		  ((= fb_out_format 0) (file-jpeg-save 1 img res_layer target_out target_out 1 0 1 1 "" 2 1 0 0))
-		  ((= fb_out_format 1) (file-png-save-defaults 1 img res_layer target_out target_out))
-		  ((= fb_out_format 2) (file-tiff-save 1 img res_layer target_out target_out 1))
-		  ((= fb_out_format 3) (file-bmp-save 1 img res_layer target_out target_out))
-		  ((= fb_out_format 4) (gimp-xcf-save 1 img res_layer target_out target_out))
-		  ((= fb_out_format 5) (file-psd-save 1 img res_layer target_out target_out 1 0))
-		)
-
-		;Image remocing
-		(gimp-image-delete img)
-	  )
-
-
-
-	  ;List offset and cycle's stage ending
-	  (set! filelist (cdr filelist))
-	)
-
-	;Going out from batch state
-	(set! fk-batch-state FALSE)
-  )
-)
-
-;fil-spe-batch procedure registration
-(apply script-fu-register
-  (append
-    (list
-    "fil-spe-batch"
-    _"<Image>/Filters/RSS/ЛИПС _Конвейер"
-    "Конвейерное исполнение ЛИПС"
-    )
-    fil-credits
-    (list
-    ""
-    SF-DIRNAME	"Папка-источник"	"/home/spoilt/Документы/Batch/IN"
-    SF-OPTION	"Входящий формат"	'(
-					"*"
-					"JPG"
-					"TIFF"
-					"XCF"
-					)
-    SF-DIRNAME	"Папка-назначение"	"/home/spoilt/Документы/Batch/OUT"
-    SF-OPTION	"Формат сохранения"	'(
-					"JPG"
-					"PNG"
-					"TIF"
-					"BMP"
-					"XCF"
-					"PSD"
-					)
-    )
-    fil-controls
-  )
-)
-
 ;fil-source-handle
 ;CORE MODULE
 ;Input variables:
@@ -751,6 +808,7 @@ stage-handle
   (let* (
 	(active (car (gimp-image-get-active-layer image)))
 	(exit-layer)
+	(temp-layer)
 	)
 
 	(if (= fk-batch-state FALSE)
@@ -760,19 +818,20 @@ stage-handle
 	    (if (= viz TRUE)
 	      (begin
 		(gimp-edit-copy-visible image)
-		(set! exit-layer 
+		(set! temp-layer 
 		  (car
 		    (gimp-edit-paste active TRUE)
 		  )
 		)
-		(gimp-floating-sel-to-layer exit-layer)
-		(gimp-drawable-set-name exit-layer "Источник = Видимое")
+		(gimp-floating-sel-to-layer temp-layer)
+		(gimp-drawable-set-name temp-layer "Источник = Видимое")
 		(set! exit-layer
 		  (car
-		    (gimp-layer-new-from-drawable exit-layer fk-sep-image)
+		    (gimp-layer-new-from-drawable temp-layer fk-sep-image)
 		  )
 		)
 		(gimp-image-add-layer fk-sep-image exit-layer -1)
+		(gimp-image-remove-layer image temp-layer)
 	      )
 	      (begin
 		(set! exit-layer 
@@ -864,12 +923,12 @@ exit
 
 ;Core section end
 
-;fil-pre-xps
+;fil-non-xps
 ;PRE-PROCESS
 ;Input variables:
 ;LAYER - processing layer;
 ;INTEGER - exposure correction value;
-(define (fil-pre-xps image layer control)
+(define (fil-non-xps image layer control)
   (let* (
 	(low_input (- 0 (* control 25)))
 	(high_input (- 255 (* control 25)))
@@ -884,7 +943,7 @@ exit
   )
 )
 
-;fil-pre-vignette
+;fil-non-vignette
 ;PRE-PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -897,7 +956,7 @@ exit
 ;COLOR - foreground color;
 ;Returned variables:
 ;LAYER - processed layer;
-(define (fil-pre-vignette image src imh imw vign_opc vign_rad vign_soft fore)
+(define (fil-non-vignette image src imh imw vign_opc vign_rad vign_soft fore)
 (define vign-exit)
   (let* (
 	(p_imh (* (/ imh 100) vign_rad))
@@ -973,7 +1032,7 @@ exit
 vign-exit
 )
 
-;fil-pre-badblur
+;fil-non-badblur
 ;PRE-PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -981,14 +1040,20 @@ vign-exit
 ;INTEGER - image height value;
 ;INTEGER - image width value;
 ;INTEGER - blur step value;
-(define (fil-pre-badblur image layer imh imw ext)
+(define (fil-non-badblur image layer imh imw ext)
   (set! ext (+ ext 1))
-  (gimp-image-undo-freeze image)
-  (plug-in-mblur 1 image layer 2 (/ (+ (/ imh (/ 1500 ext)) (/ imw (/ 1500 ext))) 2) 0 (/ imw 2) (/ imh 2))
-  (gimp-image-undo-thaw image)
+  (if (= fk-fixca-def TRUE)
+    (begin
+      (Fix-CA 1 image layer (+ 1.5 ext) (- -1.5 ext) 1 0 0 0 0)
+    )
+  )
+  (if (= fk-gmic-def TRUE)
+    (plug-in-gmic 1 image layer 1 (string-append "-blur_radial " (number->string (/ ext 3)) ",0.5,0.5"))
+    (plug-in-mblur 1 image layer 2 (/ (+ (/ imh (/ 3500 ext)) (/ imw (/ 3500 ext))) 2) 0 (/ imw 2) (/ imh 2))
+  )
 )
 
-;fil-int-sov
+;fil-clr-sov
 ;COLOR PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -999,7 +1064,7 @@ vign-exit
 ;INTEGER - red veil opacity value;
 ;Returned variables:
 ;LAYER - processed layer;
-(define (fil-int-sov image layer imh imw opc_tone opc_red)
+(define (fil-clr-sov image layer imh imw opc_tone opc_red)
 (define sov-exit)
   (let* (
 	(first (car (gimp-layer-copy layer FALSE)))
@@ -1040,17 +1105,17 @@ vign-exit
 sov-exit
 )
 
-;fil-int-gray
+;fil-clr-gray
 ;COLOR PROCESS
 ;Input variables:
 ;IMAGE - processing image;
 ;LAYER - processing layer;
-(define (fil-int-gray image layer)
+(define (fil-clr-gray image layer)
   (plug-in-colors-channel-mixer 1 image layer TRUE 0 0.3 0.6 0 0 0 0 0 0)
   (gimp-drawable-set-name layer "Ч/Б")
 )
 
-;fil-int-lomo
+;fil-clr-lomo
 ;COLOR PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -1058,7 +1123,7 @@ sov-exit
 ;INTEGER - color process number;
 ;This procedure bases on Lomo Script by Elsamuko (http://registry.gimp.org/node/7870)
 ;code by Donncha O Caoimh (donncha@inphotos.org) and Elsamuko (elsamuko@web.de)
-(define (fil-int-lomo image layer cid)
+(define (fil-clr-lomo image layer cid)
   (if (= cid 0)
     (begin
       (gimp-curves-spline layer 1 10 #(0 0 80 84 149 192 191 248 255 255))
@@ -1083,7 +1148,7 @@ sov-exit
   )
 )
 
-;fil-int-sepia
+;fil-clr-sepia
 ;COLOR PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -1094,7 +1159,7 @@ sov-exit
 ;BOOLEAN - paper imitation switch;
 ;Returned variables:
 ;LAYER - processed layer;
-(define (fil-int-sepia image layer imh imw foreground paper_switch)
+(define (fil-clr-sepia image layer imh imw foreground paper_switch)
 (define sepia-exit)
   (let* (
 	(paper 0)
@@ -1121,7 +1186,7 @@ sov-exit
 sepia-exit
 )
 
-;fil-int-duo
+;fil-clr-duo
 ;COLOR PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -1131,7 +1196,7 @@ sepia-exit
 ;COLOR - dark area color;
 ;Returned variables:
 ;LAYER - processed layer;
-(define (fil-int-duo image layer opc_affect light_color dark_color)
+(define (fil-clr-duo image layer opc_affect light_color dark_color)
 (define duo-exit)
   (let* (
 	(affect (car (gimp-layer-copy layer FALSE)))
@@ -1169,7 +1234,7 @@ sepia-exit
 duo-exit
 )
 
-;fil-int-vintage
+;fil-clr-vintage
 ;COLOR PROCESSES
 ;Input variables:
 ;IMAGE - processing image;
@@ -1184,7 +1249,7 @@ duo-exit
 ;LAYER - processed layer;
 ;This procedure bases on Vintage Look script by Michael Maier (http://registry.gimp.org/node/1348)
 ;code by Michael Maier (info@mmip.net) and Elsamuko (elsamuko@web.de)
-(define (fil-int-vintage img drw imh imw VarCyan VarMagenta VarYellow Overlay)
+(define (fil-clr-vintage img drw imh imw VarCyan VarMagenta VarYellow Overlay)
 (define vint-exit)
   (let* (
 	(overlay-layer (car (gimp-layer-copy drw FALSE)))
@@ -1237,8 +1302,9 @@ duo-exit
 vint-exit
 )
 
-;fil-int-chrome
+;fil-clr-chrome
 ;COLOR PROCESS
+;Input variables:
 ;IMAGE - processing image;
 ;LAYER - processing layer;
 ;INTEGER - image height value;
@@ -1255,7 +1321,7 @@ vint-exit
 ;LAYER - processed layer;
 ;This procedure bases on Photochrom script by Elsamuko (http://registry.gimp.org/node/24197)
 ;code by Elsamuko (elsamuko@web.de)
-(define (fil-int-chrome image layer imh imw color1 color2 contrast bw-merge num1 num2 dodge retro)
+(define (fil-clr-chrome image layer imh imw color1 color2 contrast bw-merge num1 num2 gray retro)
 (define chrome-exit)
   (let* (
 	(offset1 (* imh (/ num1 100)))
@@ -1376,9 +1442,9 @@ vint-exit
 	  )
 	)
     
-	;dodge b/w
-	(if(= dodge TRUE)
-	    (gimp-desaturate-full dodge-layer DESATURATE-LUMINOSITY)
+	;make source layer gray
+	(if(= gray TRUE)
+	    (gimp-hue-saturation layer 0 0 0 -70)
 	)
 
 	;layers merging
@@ -1402,17 +1468,45 @@ vint-exit
 chrome-exit
 )
 
-;fil-int-simplegrain
+;fil-clr-dram_c
+;COLOR PROCESS
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
+;COLOR - overlay and tone color;
+;Returned variables:
+;LAYER - processed layer;
+(define (fil-clr-dram_c image layer input_color)
+(define dram-c-exit)
+  (let* (
+	(color_layer 0)
+	(over_layer 0)
+	)
+	(set! over_layer (car (gimp-layer-copy layer FALSE)))
+	(gimp-image-add-layer image over_layer -1)
+	(plug-in-colorify 1 image over_layer input_color)
+	(gimp-layer-set-mode over_layer 5)
+	(set! color_layer (car (gimp-layer-copy over_layer FALSE)))
+	(gimp-image-add-layer image color_layer -1)
+	(gimp-layer-set-mode color_layer 13)
+	(gimp-layer-set-opacity color_layer 40)
+	(set! layer (car (gimp-image-merge-down image over_layer 0)))
+	(set! layer (car (gimp-image-merge-down image color_layer 0)))
+	(set! dram-c-exit layer)
+  )
+dram-c-exit
+)
+
+;fil-grn-simplegrain
 ;GRAIN PROCESS
 ;Input variables:
 ;IMAGE - processing image;
 ;LAYER - processing layer;
-(define (fil-int-simplegrain image clr_res)
-  (plug-in-hsv-noise 1 image clr_res 2 3 0 25)
-  (gimp-drawable-set-name clr_res "Простая зернистость")
+(define (fil-grn-simplegrain image layer)
+  (plug-in-hsv-noise 1 image layer 2 3 0 25)
 )
 
-;fil-int-adv_grain
+;fil-grn-adv_grain
 ;GRAIN PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -1423,7 +1517,7 @@ chrome-exit
 ;BOOLEAN - grain amplification switch;
 ;Returned variables:
 ;LAYER - processed layer;
-(define (fil-int-adv_grain image clr_res imh imw foreground boost)
+(define (fil-grn-adv_grain image clr_res imh imw foreground boost)
 (define adv-exit)
   (let* (
 	(name "Зерно+")
@@ -1472,7 +1566,7 @@ chrome-exit
 adv-exit
 )
 
-;fil-int-sulfide
+;fil-grn-sulfide
 ;GRAIN PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -1485,7 +1579,7 @@ adv-exit
 ;BOOLEAN - scratch-mode switch;
 ;Returned variables:
 ;LAYER - processed layer;
-(define (fil-int-sulfide image layer imh imw foreground scale_step grunge_switch scratch_switch)
+(define (fil-grn-sulfide image layer imh imw foreground scale_step grunge_switch scratch_switch)
 (define sulf-exit)
   (let* (
 	(sc_imh (/ imh scale_step))
@@ -1550,7 +1644,7 @@ adv-exit
 	    (plug-in-plasma 1 image grunge_layer 0 5.0)
 	    (gimp-desaturate grunge_layer)
 	    (gimp-layer-set-mode grunge_layer 5)
-	    (gimp-layer-set-opacity grunge_layer 45)
+	    (gimp-layer-set-opacity grunge_layer 65)
 	    (set! layer
 	      (car
 		(gimp-image-merge-down image grunge_layer 0)
