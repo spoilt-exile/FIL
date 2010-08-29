@@ -1,4 +1,4 @@
-;FIL v1.7.0 beta4
+;FIL v1.7.0 RC1
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -16,17 +16,7 @@
 ;http://www.gnu.org/licenses/gpl-3.0.html
 ;
 ;FIL = ЛИПС (Лаборатория Имитации Пленочных Снимков);
-;TO-DO (ver. 1.7.0):
-; - separate image processing (important!);		(DONE)
-; - undo support (important!);				(DONE)
-; - localization subsystem;				(DROPED)
-; - core redisighn;					(DONE)
-; - binary plugin integration (important!);		(DONE)
-; - port some processes;				(DONE)
-; - API modification;					(DONE)
-; - random mode in batch process;			(DONE)
-; - stage invert execution;				(DROPED)
-; - "Dram" process developing;				(DONE)
+
 ;Version history:
 ;===============================================================================================================
 ;ver. 0.3 (December 19 2009)
@@ -87,17 +77,26 @@
 ; - Grunge filter included in Sulfide process.
 ; - stable release status;
 ;===============================================================================================================
+;ver 1.7.0 (August 30 2010)
+; - undo support and separate image processing;
+; - binary plugin integration (G'MIC and Fix-CA);
+; - new proceesses ("Vintage", "Photochrom" and "Dram");
+; - plugin checker added;
+; - film scratches in "Sulfide" process added;
+; - chromatic abberation in "Border Blur" pre-process added;
+;===============================================================================================================
 ;Procedures:			Status		Revision	Specs version
 ;==========================================CORE PROCEDURES======================================================
 ;fil-spe-core			stable		---		1.7
-;fil-spe-batch			stable		---		---
 ;fil-stage-handle		stable		---		---
 ;fil-source-handle		stable		---		---
 ;fil-plugs-handle		stable		---		---
+;fil-dep_error-handle		stable		---		---
+;fil-spe-batch			stable		---		---
 ;===========================================PRE-PROCESSES=======================================================
-;fil-non-xps			stable		r0		1.7
-;fil-non-vignette		stable		r3		1.7
-;fil-nonfx-badblur		stable		r3		1.7
+;fil-pre-xps			stable		r0		1.7
+;fil-pre-vignette		stable		r3		1.7
+;fil-prefx-badblur		stable		r3		1.7
 ;==========================================COLOR PROCESSES======================================================
 ;fil-clr-sov			stable		r5		1.7
 ;fil-clr-gray			stable		r2		1.7
@@ -112,15 +111,15 @@
 ;fil-grn-grain_plus		stable		r4		1.7
 ;fil-grnfx-sulfide		stable		r3		1.7
 ;=====================================FIL module classification=================================================
-; -non - non-register process.
+; -pre - pre-process.
 ; -clr - color process.
 ; -grn - grain process.
-; -nonfx - non-register process which  uses plugins.
+; -prefx - pre-process which uses plugins.
 ; -clrfx - color process which uses plugins.
 ; -grnfx - grain process which uses plugins.
 ;=================================FIL 1.7 modules requirements list:============================================
 ; * process can use binary plugin procedures by using core permissions in fk-*-def variables.
-; * if process can't work without some plugin then error message should appear.
+; * if process can't work without some plugin then message should appear (via fil-dep_error-handle).
 ; * processes shouldn't call other FIL processes from itself but it can call private additional procedures.
 ; * processes shouldn't change image dimensions or it's color depth.
 ; * procceses able to take some image option from FIL core by itself (variable class fc_*).
@@ -134,16 +133,7 @@
 ;fk-clr-stage		YES				1
 ;fk-grain-stage		YES				2
 ;===============================================================================================================
-(1.7.0 beta4):
-* API has been modificated;
-* batch process randomization;
-* "Dram" process added (color process);
-* module classification were updated;
-* fil-nonfx-badblur  second and third revisions;
-* "Photochrom: gray" profile added;
-* Fix-CA plugin activation fixed;
-* visible extracting in separate image was fixed;
-* "Photochrom" first revision;
+
 ;Core global variables
 
 ;Core stage register with stage_id=1 (color stage);
@@ -247,6 +237,9 @@
 ;Core stage counter
 (define fk-stage-counter 0)
 
+;Original image variable
+(define fk-org-image)
+
 ;Separate image variable
 (define fk-sep-image)
 
@@ -258,20 +251,15 @@
 
 
 ;G'MIC plugin integration activator
-(define fk-gmic-def FALSE)
-(if (defined? 'plug-in-gmic)
-  (set! fk-gmic-def TRUE)
-)
+(define fk-gmic-def (if (defined? 'plug-in-gmic) TRUE FALSE))
 
 ;Fix-CA plugin integration activator
-(define fk-fixca-def FALSE)
-(if (defined? 'Fix-CA)
-  (set! fk-fixca-def TRUE)
-)
+(define fk-fixca-def (if (defined? 'Fix-CA) TRUE FALSE))
 
 ;Plugin information global list
 (define fk-plugs-list
   (list
+
     ;G'MIC info entry
     (list "G'MIC" "http://registry.gimp.org/node/13469" fk-gmic-def)
 
@@ -372,7 +360,7 @@
 	    ;Exposure correction launching
 	    (if (not (= fm_pre_xps_control 0))
 	      (begin
-		(fil-non-xps fk-sep-image fio_uni_layer fm_pre_xps_control)
+		(fil-pre-xps fk-sep-image fio_uni_layer fm_pre_xps_control)
 		(set! fs_xps_str (string-append fs_xps_str (if (> fm_pre_xps_control 0) "+" "-") (number->string fm_pre_xps_control)))
 		(if (> (string-length fs_xps_str) 10)
 		  (set! fs_xps_str (substring fs_xps_str 0 11))
@@ -385,7 +373,7 @@
 	    (if (= fm_pre_vign_flag TRUE)
 	      (if (> fm_pre_vign_opc 0)
 		(begin
-		  (set! fio_uni_layer (fil-non-vignette fk-sep-image fio_uni_layer fc_imh fc_imw fm_pre_vign_opc fm_pre_vign_rad fm_pre_vign_soft fc_fore))
+		  (set! fio_uni_layer (fil-pre-vignette fk-sep-image fio_uni_layer fc_imh fc_imw fm_pre_vign_opc fm_pre_vign_rad fm_pre_vign_soft fc_fore))
 		  (set! fs_res_str (string-append fs_res_str fs_vign_str))
 		)
 	      )
@@ -394,7 +382,7 @@
 	    ;Blur launching
 	    (if (> fm_pre_blur_step 0)
 	      (begin
-		(fil-non-badblur fk-sep-image fio_uni_layer fc_imh fc_imw fm_pre_blur_step)
+		(fil-prefx-badblur fk-sep-image fio_uni_layer fc_imh fc_imw fm_pre_blur_step)
 		(set! fs_res_str (string-append fs_res_str fs_blur_str (number->string (+ fm_pre_blur_step 1)) " "))
 	      )
 	    )
@@ -483,6 +471,203 @@
     (begin
       (gimp-image-undo-enable fm_image)
       (gimp-context-pop)
+    )
+  )
+)
+
+;fil-stage-handle
+;CORE MODULE
+;Input variables:
+;BOOLEAN - TRUE returning name list of specified stage / FALSE returning list with execution variables;
+;INTEGER - core stage number (required option);
+;INTEGER - selected process number (zero if need to return list of process);
+;Returning variables:
+;LIST - list with strings of the processes names / list with process name and with block of code;
+(define (fil-stage-handle param stage_id proc_id)
+(define stage-handle)
+(let* (
+      (stage_error (string-append "ЛИПС не нашел стадию с указанным номером:\nstage_id=" (number->string stage_id)))
+      (proc_error (string-append "ЛИПС не нашел процесс с указанным номером:\nstage_id=" (number->string stage_id) "\nproc_id=" (number->string proc_id)))
+      (curr_error (string-append "Текущая стадия ЛИПС не является региструруемой:\nstage_id=" (number->string stage_id)))
+      (stage_counter -1)
+      (proc_counter -1)
+      (current_stage_list)
+      (name_list '())
+      (proc_list)
+      (temp_list)
+      (temp_entry)
+      )
+      (set! temp_list fk-stages-list)
+
+      ;Recieving list of current stage
+      (if (not (or (< stage_id 0) (> stage_id (- (length fk-stages-list) 1))))
+	(while (< stage_counter stage_id)
+	  (begin
+	    (set! current_stage_list (car temp_list))
+	    (set! stage_counter (+ stage_counter 1))
+	    (set! temp_list (cdr temp_list))
+	  )
+	)
+	(gimp-message stage_error)
+      )
+
+      ;Error message if current stage return FALSE
+      (if (not (list? current_stage_list))
+	(gimp-message curr_error)
+      )
+
+      ;Stage processing
+      (if (= param TRUE)
+
+	;Nmae list generation
+	(begin
+	  (while (not (null? current_stage_list))
+	    (set! temp_entry (car current_stage_list))
+	    (set! name_list (append name_list (list (car temp_entry))))
+	    (set! current_stage_list (cdr current_stage_list))
+	  )
+	  (set! stage-handle name_list)
+	)
+
+	;Recieving list with name of process and code block
+	(begin
+	  (if (not (or (< proc_id 0) (> proc_id (- (length current_stage_list) 1))))
+	    (begin
+	      (while (< proc_counter proc_id)
+		(set! proc_list (car current_stage_list))
+		(set! proc_counter (+ proc_counter 1))
+		(set! current_stage_list (cdr current_stage_list))
+	      )
+	    )
+	    (gimp-message proc_error)
+	  )
+	  (set! stage-handle proc_list)
+	)
+      )
+)
+stage-handle
+)
+
+;fil-source-handle
+;CORE MODULE
+;Input variables:
+;IMAGE - processing image;
+;BOOLEAN. - fm_misc_visible raw value;
+;Returned variables:
+;LAYER - ready layer;
+(define (fil-source-handle image viz)
+(define exit)
+  (let* (
+	(active (car (gimp-image-get-active-layer image)))
+	(exit-layer)
+	(temp-layer)
+	)
+
+	(if (= fk-batch-state FALSE)
+	  (begin
+	    (set! fk-sep-image (car (gimp-image-duplicate image)))
+	    (set! fk-org-image image)
+	    (gimp-image-undo-disable fk-sep-image)
+	    (if (= viz TRUE)
+	      (begin
+		(gimp-edit-copy-visible image)
+		(set! temp-layer 
+		  (car
+		    (gimp-edit-paste active TRUE)
+		  )
+		)
+		(gimp-floating-sel-to-layer temp-layer)
+		(gimp-drawable-set-name temp-layer "Источник = Видимое")
+		(set! exit-layer
+		  (car
+		    (gimp-layer-new-from-drawable temp-layer fk-sep-image)
+		  )
+		)
+		(gimp-image-add-layer fk-sep-image exit-layer -1)
+		(gimp-image-remove-layer image temp-layer)
+	      )
+	      (begin
+		(set! exit-layer 
+		  (car 
+		    (gimp-layer-new-from-drawable active fk-sep-image)
+		  )
+		)
+		(gimp-image-add-layer fk-sep-image exit-layer -1)
+		(gimp-drawable-set-name exit-layer "Источник = Копия")
+	      )
+	    )
+	  )
+	  (begin
+	    (if (= viz TRUE)
+	      (begin
+		(gimp-edit-copy-visible image)
+		(set! exit-layer 
+		  (car
+		    (gimp-edit-paste active TRUE)
+		  )
+		)
+		(gimp-floating-sel-to-layer exit-layer)
+		(gimp-drawable-set-name exit-layer "Источник = Видимое")
+		(gimp-image-raise-layer-to-top image exit-layer)
+	      )
+	      (begin
+		(set! exit-layer (car (gimp-layer-copy active FALSE)))
+		(gimp-image-add-layer image exit-layer -1)
+		(gimp-drawable-set-name exit-layer "Источник = Копия")
+	      )
+	    )
+	  )
+	)
+	(set! exit exit-layer)
+  )
+exit
+)
+
+;fil-plugs-handle
+;CORE MODULE
+;Hasn't arguments
+(define (fil-plugs-handle)
+  (let* (
+	(finded " найден.")
+	(not_finded " не найден.\nПожалуйста установите плагин используя ссылку:")
+	(line "\n")
+	(space " ")
+	(temp_list)
+	(temp_entry)
+	(plug_name)
+	(plug_url)
+	(plug_var)
+	(plug_message "")
+	)
+	(set! temp_list fk-plugs-list)
+	(while (not (null? temp_list))
+	  (set! temp_entry (car temp_list))
+	  (set! plug_name (car temp_entry))
+	  (set! plug_url (cadr temp_entry))
+	  (set! plug_var (caddr temp_entry))
+	  (if (= plug_var TRUE)
+	    (set! plug_message (string-append plug_message plug_name space finded))
+	    (begin
+	      (set! plug_message (string-append plug_message plug_name space not_finded line plug_url))
+	    )
+	  )
+	  (set! plug_message (string-append plug_message line))
+	  (set! temp_list (cdr temp_list))
+	)
+	(set! plug_message (string-append plug_message line "ЛИПС v1.7.0"))
+	(gimp-message plug_message)
+  )
+)
+
+;fil-dep_error_handle
+;CORE MODULE
+;Input variables:
+;STRING - name of missing plugin;
+(define (fil-dep_error-handle dep_name)
+  (gimp-message 
+    (string-append "Выбранное вами действие требует наличия расширения " dep_name ", которое не установленно на данный момент." 
+    "\nЗапустите скрипт проверки плагинов (Фильтры/RSS/ЛИПС Проверка плагинов) для более детальной информации.
+    \nВыполнение продолжится без дополнительных эффектов."
     )
   )
 )
@@ -693,7 +878,7 @@
   (append
     (list
     "fil-spe-batch"
-    _"<Image>/Filters/RSS/ЛИПС 1.7 _Конвейер"
+    _"<Image>/Filters/RSS/ЛИПС 1.7 Кон_вейер"
     "Конвейерное исполнение ЛИПС"
     )
     fil-credits
@@ -723,189 +908,6 @@
   )
 )
 
-;fil-stage-handle
-;CORE MODULE
-;Input variables:
-;BOOLEAN - TRUE returning name list of specified stage / FALSE returning list with execution variables;
-;INTEGER - core stage number (required option);
-;INTEGER - selected process number (zero if need to return list of process);
-;Returning variables:
-;LIST - list with strings of the processes names / list with process name and with block of code;
-(define (fil-stage-handle param stage_id proc_id)
-(define stage-handle)
-(let* (
-      (stage_error (string-append "ЛИПС не нашел стадию с указанным номером:\nstage_id=" (number->string stage_id)))
-      (proc_error (string-append "ЛИПС не нашел процесс с указанным номером:\nstage_id=" (number->string stage_id) "\nproc_id=" (number->string proc_id)))
-      (curr_error (string-append "Текущая стадия ЛИПС не является региструруемой:\nstage_id=" (number->string stage_id)))
-      (stage_counter -1)
-      (proc_counter -1)
-      (current_stage_list)
-      (name_list '())
-      (proc_list)
-      (temp_list)
-      (temp_entry)
-      )
-      (set! temp_list fk-stages-list)
-
-      ;Recieving list of current stage
-      (if (not (or (< stage_id 0) (> stage_id (- (length fk-stages-list) 1))))
-	(while (< stage_counter stage_id)
-	  (begin
-	    (set! current_stage_list (car temp_list))
-	    (set! stage_counter (+ stage_counter 1))
-	    (set! temp_list (cdr temp_list))
-	  )
-	)
-	(gimp-message stage_error)
-      )
-
-      ;Error message if current stage return FALSE
-      (if (not (list? current_stage_list))
-	(gimp-message curr_error)
-      )
-
-      ;Stage processing
-      (if (= param TRUE)
-
-	;Nmae list generation
-	(begin
-	  (while (not (null? current_stage_list))
-	    (set! temp_entry (car current_stage_list))
-	    (set! name_list (append name_list (list (car temp_entry))))
-	    (set! current_stage_list (cdr current_stage_list))
-	  )
-	  (set! stage-handle name_list)
-	)
-
-	;Recieving list with name of process and code block
-	(begin
-	  (if (not (or (< proc_id 0) (> proc_id (- (length current_stage_list) 1))))
-	    (begin
-	      (while (< proc_counter proc_id)
-		(set! proc_list (car current_stage_list))
-		(set! proc_counter (+ proc_counter 1))
-		(set! current_stage_list (cdr current_stage_list))
-	      )
-	    )
-	    (gimp-message proc_error)
-	  )
-	  (set! stage-handle proc_list)
-	)
-      )
-)
-stage-handle
-)
-
-;fil-source-handle
-;CORE MODULE
-;Input variables:
-;IMAGE - processing image;
-;BOOLEAN. - fm_misc_visible raw value;
-;Returned variables:
-;LAYER - ready layer;
-(define (fil-source-handle image viz)
-(define exit)
-  (let* (
-	(active (car (gimp-image-get-active-layer image)))
-	(exit-layer)
-	(temp-layer)
-	)
-
-	(if (= fk-batch-state FALSE)
-	  (begin
-	    (set! fk-sep-image (car (gimp-image-duplicate image)))
-	    (gimp-image-undo-disable fk-sep-image)
-	    (if (= viz TRUE)
-	      (begin
-		(gimp-edit-copy-visible image)
-		(set! temp-layer 
-		  (car
-		    (gimp-edit-paste active TRUE)
-		  )
-		)
-		(gimp-floating-sel-to-layer temp-layer)
-		(gimp-drawable-set-name temp-layer "Источник = Видимое")
-		(set! exit-layer
-		  (car
-		    (gimp-layer-new-from-drawable temp-layer fk-sep-image)
-		  )
-		)
-		(gimp-image-add-layer fk-sep-image exit-layer -1)
-		(gimp-image-remove-layer image temp-layer)
-	      )
-	      (begin
-		(set! exit-layer 
-		  (car 
-		    (gimp-layer-new-from-drawable active fk-sep-image)
-		  )
-		)
-		(gimp-image-add-layer fk-sep-image exit-layer -1)
-		(gimp-drawable-set-name exit-layer "Источник = Копия")
-	      )
-	    )
-	  )
-	  (begin
-	    (if (= viz TRUE)
-	      (begin
-		(gimp-edit-copy-visible image)
-		(set! exit-layer 
-		  (car
-		    (gimp-edit-paste active TRUE)
-		  )
-		)
-		(gimp-floating-sel-to-layer exit-layer)
-		(gimp-drawable-set-name exit-layer "Источник = Видимое")
-		(gimp-image-raise-layer-to-top image exit-layer)
-	      )
-	      (begin
-		(set! exit-layer (car (gimp-layer-copy active FALSE)))
-		(gimp-image-add-layer image exit-layer -1)
-		(gimp-drawable-set-name exit-layer "Источник = Копия")
-	      )
-	    )
-	  )
-	)
-	(set! exit exit-layer)
-  )
-exit
-)
-
-;fil-plugs-handle
-;CORE MODULE
-;Hasn't arguments
-(define (fil-plugs-handle)
-  (let* (
-	(finded " найден.")
-	(not_finded " не найден.\nПожалуйста установите плагин используя ссылку:")
-	(line "\n")
-	(space " ")
-	(temp_list)
-	(temp_entry)
-	(plug_name)
-	(plug_url)
-	(plug_var)
-	(plug_message "")
-	)
-	(set! temp_list fk-plugs-list)
-	(while (not (null? temp_list))
-	  (set! temp_entry (car temp_list))
-	  (set! plug_name (car temp_entry))
-	  (set! plug_url (cadr temp_entry))
-	  (set! plug_var (caddr temp_entry))
-	  (if (= plug_var TRUE)
-	    (set! plug_message (string-append plug_message plug_name space finded))
-	    (begin
-	      (set! plug_message (string-append plug_message plug_name space not_finded line plug_url))
-	    )
-	  )
-	  (set! plug_message (string-append plug_message line))
-	  (set! temp_list (cdr temp_list))
-	)
-	(set! plug_message (string-append plug_message line "ЛИПС v1.7.0"))
-	(gimp-message plug_message)
-  )
-)
-
 ;fil-plugs-handle registration procedure
 (apply script-fu-register
   (append
@@ -923,12 +925,12 @@ exit
 
 ;Core section end
 
-;fil-non-xps
+;fil-pre-xps
 ;PRE-PROCESS
 ;Input variables:
 ;LAYER - processing layer;
 ;INTEGER - exposure correction value;
-(define (fil-non-xps image layer control)
+(define (fil-pre-xps image layer control)
   (let* (
 	(low_input (- 0 (* control 25)))
 	(high_input (- 255 (* control 25)))
@@ -943,7 +945,7 @@ exit
   )
 )
 
-;fil-non-vignette
+;fil-pre-vignette
 ;PRE-PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -956,7 +958,7 @@ exit
 ;COLOR - foreground color;
 ;Returned variables:
 ;LAYER - processed layer;
-(define (fil-non-vignette image src imh imw vign_opc vign_rad vign_soft fore)
+(define (fil-pre-vignette image src imh imw vign_opc vign_rad vign_soft fore)
 (define vign-exit)
   (let* (
 	(p_imh (* (/ imh 100) vign_rad))
@@ -1032,7 +1034,7 @@ exit
 vign-exit
 )
 
-;fil-non-badblur
+;fil-prefx-badblur
 ;PRE-PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -1040,7 +1042,7 @@ vign-exit
 ;INTEGER - image height value;
 ;INTEGER - image width value;
 ;INTEGER - blur step value;
-(define (fil-non-badblur image layer imh imw ext)
+(define (fil-prefx-badblur image layer imh imw ext)
   (set! ext (+ ext 1))
   (if (= fk-fixca-def TRUE)
     (begin
@@ -1594,6 +1596,7 @@ adv-exit
 	(if (= scratch_switch TRUE)
 	  (if (= fk-gmic-def TRUE)
 	    (plug-in-gmic 1 image layer 1 "-apply_channels \"-stripes_y 3\",7")
+	    (fil-dep_error-handle "G'MIC")
 	  )
 	)
 
