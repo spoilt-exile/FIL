@@ -1,4 +1,4 @@
-;FIL v1.7.0 pre-release 1
+;FIL v1.7.0 pre-release 2
 ;
 ;FIL is a part of RSK (RSS Script Kit)
 ;
@@ -166,7 +166,7 @@
     (list "Sepia: normal" 		TRUE	(quote (fil-clr-sepia fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore FALSE)))
 
     ;Process "Sepia: with imitation" with proc_id=7
-    (list "Sepia: with imitation"		TRUE	(quote (fil-clr-sepia fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore TRUE)))
+    (list "Sepia: with imitation"	TRUE	(quote (fil-clr-sepia fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore TRUE)))
 
     ;Process "Duotone: normal" with proc_id=8
     (list "Duotone: normal" 		TRUE	(quote (fil-clr-duo fk-sep-image fio_uni_layer 75 '(200 175 140) '(80 102 109))))
