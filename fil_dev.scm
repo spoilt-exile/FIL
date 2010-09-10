@@ -1,4 +1,6 @@
-;FIL v1.6.0 release snaphot
+;FIL v1.7.0 pre-release 1
+;
+;FIL is a part of RSK (RSS Script Kit)
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -16,8 +18,7 @@
 ;http://www.gnu.org/licenses/gpl-3.0.html
 ;
 ;FIL = Film Imitation Lab;
-;TO-DO (ver. 1.6.1):
-; - port some processes;
+;
 ;Version history:
 ;===============================================================================================================
 ;ver. 0.3 (December 19 2009)
@@ -78,32 +79,50 @@
 ; - Grunge filter included in Sulfide process.
 ; - stable release status;
 ;===============================================================================================================
+;ver 1.7.0 (August 30 2010)
+; - undo support by separate image processing;
+; - binary plugin integration (G'MIC and Fix-CA);
+; - new proceesses ("Vintage", "Photochrom" and "Dram");
+; - plugins checker added;
+; - film scratches in "Sulfide" process added;
+; - chromatic abberation in "Border Blur" pre-process added;
+;===============================================================================================================
 ;Procedures:			Status		Revision	Specs version
 ;==========================================CORE PROCEDURES======================================================
-;fil-ng-core			stable		---		1.6
+;fil-spe-core			stable		---		1.7
 ;fil-stage-handle		stable		---		---
 ;fil-source-handle		stable		---		---
-;fil-ng-batch			stable		---		---
+;fil-plugs-handle		stable		---		---
+;fil-dep_warn-handle		stable		---		---
+;fil-spe-batch			stable		---		---
 ;===========================================PRE-PROCESSES=======================================================
-;fil-pre-xps			stable		r0		1.6
-;fil-pre-vignette		stable		r3		1.6
-;fil-pre-badblur		stable		r1		1.6
+;fil-pre-xps			stable		r0		1.7
+;fil-pre-vignette		stable		r3		1.7
+;fil-prefx-badblur		stable		r3		1.7
 ;==========================================COLOR PROCESSES======================================================
-;fil-int-sov			stable		r5		1.6
-;fil-int-gray			stable		r2		1.6
-;fil-int-lomo			stable		r1		1.6
-;fil-int-sepia			stable		r4		1.6
-;fil-int-duo			stable		r1		1.6
+;fil-clr-sov			stable		r5		1.7
+;fil-clr-gray			stable		r2		1.7
+;fil-clr-lomo			stable		r2		1.7
+;fil-clr-sepia			stable		r4		1.7
+;fil-clr-duo			stable		r1		1.7
+;fil-clr-vintage		stable		r0		1.7
+;fil-clr-chrome			stable		r1		1.7
+;fil-clr-dram_c			stable		r0		1.7
 ;==========================================GRAIN PROCESSES======================================================
-;fil-int-simplegrain		stable		r2		1.6
-;fil-int-grain_plus		stable		r4		1.6
-;fil-int-sulfide		stable		r2		1.6
+;fil-grn-simplegrain		stable		r3		1.7
+;fil-grn-adv_grain		stable		r4		1.7
+;fil-grnfx-sulfide		stable		r3		1.7
 ;=====================================FIL module classification=================================================
 ; -pre - pre-process.
-; -int - internal procedure (locate in this file).
-; -ext - externel procedure (somewhere out of this file).
-; -dep - external procedure which depend on binary plug-ins.
-;=================================FIL 1.6 modules requirements list:============================================
+; -clr - color process.
+; -grn - grain process.
+; -prefx - pre-process which uses plugins.
+; -clrfx - color process which uses plugins.
+; -grnfx - grain process which uses plugins.
+;=================================FIL 1.7 modules requirements list:============================================
+; * process can use binary plugin procedures by using core permissions in fk-*-def variables.
+; * if process can't work without some plugin then message should appear (via fil-dep_warn-handle).
+; * process can call to binary plugin only in NON-INTERACTIVE mode.
 ; * processes shouldn't call other FIL processes from itself but it can call private additional procedures.
 ; * processes shouldn't change image dimensions or it's color depth.
 ; * procceses able to take some image option from FIL core by itself (variable class fc_*).
@@ -111,7 +130,7 @@
 ; * processes (except pre-proccesses) should be register in fk-clr-stage and fk-grain-stage variables.
 ; * processes should return final layer to core (if processes use many layers).
 ; * processes could have special launch options (for creating profiles).
-;========================================FIL 1.6 core stages====================================================
+;========================================FIL 1.7 core stages====================================================
 ;Stage			Register?			Stage number (stage_id)
 ;pre-stage		NO				0
 ;fk-clr-stage		YES				1
@@ -126,31 +145,58 @@
   (list
     
     ;Process "SOV: normal" with proc_id=0
-    (list "SOV: normal" 		(quote (set! fp_clr_layer (fil-int-sov fm_image fp_clr_layer fc_imh fc_imw 60 65))))
+    (list "SOV: normal" 		TRUE	(quote (fil-clr-sov fk-sep-image fio_uni_layer fc_imh fc_imw 60 65)))
 
     ;Process "SOV: light" with proc_id=1
-    (list "SOV: light"			(quote (set! fp_clr_layer (fil-int-sov fm_image fp_clr_layer fc_imh fc_imw 30 35))))
+    (list "SOV: light" 			TRUE	(quote (fil-clr-sov fk-sep-image fio_uni_layer fc_imh fc_imw 30 35)))
 
     ;Process "B/W" with proc_id=2
-    (list "B/W" 			(quote (fil-int-gray fm_image fp_clr_layer)))
+    (list "B/W" 			FALSE	(quote (fil-clr-gray fk-sep-image fio_uni_layer)))
 
-    ;Process "Lomo" with proc_id=3
-    (list "Lomo" 			(quote (fil-int-lomo fm_image fp_clr_layer)))
+    ;Process "Lomo: XPro Green" with proc_id=3
+    (list "Lomo: XPro Green" 		FALSE	(quote (fil-clr-lomo fk-sep-image fio_uni_layer 0)))
 
-    ;Process "Sepia: normal" with proc_id=4
-    (list "Sepia: normal" 		(quote (set! fp_clr_layer (fil-int-sepia fm_image fp_clr_layer fc_imh fc_imw fc_fore FALSE))))
+    ;Process "Lomo: XPro Autumn" with proc_id=4
+    (list "Lomo: XPro Autumn" 		FALSE	(quote (fil-clr-lomo fk-sep-image fio_uni_layer 1)))
 
-    ;Process "Sepia: with imitation" with proc_id=5
-    (list "Sepia: with imitaion"	(quote (set! fp_clr_layer (fil-int-sepia fm_image fp_clr_layer fc_imh fc_imw fc_fore TRUE))))
+    ;Process "Lomo: Old Red" with proc_id=5
+    (list "Lomo: Old Red" 		FALSE	(quote (fil-clr-lomo fk-sep-image fio_uni_layer 2)))
 
-    ;Process "Duotone: normal" with proc_id=6
-    (list "Duotone: normal" 		(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 75 '(200 175 140) '(80 102 109)))))
+    ;Process "Sepia: normal" with proc_id=6
+    (list "Sepia: normal" 		TRUE	(quote (fil-clr-sepia fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore FALSE)))
 
-    ;Process "Duotone: soft" with proc_id=7
-    (list "Duotone: soft" 		(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 30 '(200 175 140) '(80 102 109)))))
+    ;Process "Sepia: with imitation" with proc_id=7
+    (list "Sepia: with imitation"		TRUE	(quote (fil-clr-sepia fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore TRUE)))
 
-    ;Process "Duotone: user colors" with proc_id=8
-    (list "Duotone: user colors"	(quote (set! fp_clr_layer (fil-int-duo fm_image fp_clr_layer 55 fc_fore fc_back))))
+    ;Process "Duotone: normal" with proc_id=8
+    (list "Duotone: normal" 		TRUE	(quote (fil-clr-duo fk-sep-image fio_uni_layer 75 '(200 175 140) '(80 102 109))))
+
+    ;Process "Duotone: soft" with proc_id=9
+    (list "Duotone: soft" 		TRUE	(quote (fil-clr-duo fk-sep-image fio_uni_layer 30 '(200 175 140) '(80 102 109))))
+
+    ;Process "Duotone: user colors" with proc_id=10
+    (list "Duotone: user colors" 	TRUE	(quote (fil-clr-duo fk-sep-image fio_uni_layer 55 fc_fore fc_back)))
+
+    ;Process "Vintage" with proc_id=11
+    (list "Vintage"			TRUE	(quote (fil-clr-vintage fk-sep-image fio_uni_layer fc_imh fc_imw 17 20 59 TRUE)))
+
+    ;Process "Photochrom: normal" with proc_id=12
+    (list "Photochrom: normal"		TRUE	(quote (fil-clr-chrome fk-sep-image fio_uni_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 FALSE FALSE)))
+
+    ;Process "Photochrom: retro" with proc_id=13
+    (list "Photochrom: retro"		TRUE	(quote (fil-clr-chrome fk-sep-image fio_uni_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 FALSE TRUE)))
+
+    ;Process "Photochrom: bleach" with proc_id=14
+    (list "Photochrom: bleach"		TRUE	(quote (fil-clr-chrome fk-sep-image fio_uni_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 TRUE FALSE)))
+
+    ;Process "Photochrom: user colors" with proc_id=15
+    (list "Photochrom: user colors"	TRUE	(quote (fil-clr-chrome fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore fc_back 60 60 0 100 FALSE FALSE)))
+
+    ;Process "Dram: normal" with proc_id=16
+    (list "Dram: normal"		TRUE	(quote (fil-clr-dram_c fk-sep-image fio_uni_layer '(93 103 124))))
+
+    ;Process "Dram: user colors" with proc_id=17
+    (list "Dram: user colors"		TRUE	(quote (fil-clr-dram_c fk-sep-image fio_uni_layer fc_fore)))
   )
 )
 
@@ -160,22 +206,25 @@
   (list
 
     ;Process "Simple grain" with proc_id=0
-    (list "Simple grain"		(quote (fil-int-simplegrain fm_image fp_grain_layer)))
+    (list "Simple grain"		FALSE	(quote (fil-grn-simplegrain fk-sep-image fio_uni_layer)))
 
     ;Process "Grain+: normal" with proc_id=1
-    (list "Grain+: normal" 		(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore FALSE))))
+    (list "Grain+: normal" 		TRUE	(quote (fil-grn-adv_grain fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore FALSE)))
 
     ;Process "Grain+: amplified" with proc_id=2
-    (list "Grain+: amplified" 		(quote (set! fp_grain_layer (fil-int-adv_grain fm_image fp_grain_layer fc_imh fc_imw fc_fore TRUE))))
+    (list "Grain+: amplified" 		TRUE	(quote (fil-grn-adv_grain fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore TRUE)))
 
     ;Process "Sulfide: normal" with proc_id=3
-    (list "Sulfide: normal"		(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 2.5 FALSE))))
+    (list "Sulfide: normal"		TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE FALSE)))
 
     ;Process "Sulfide: large scale" with proc_id=4
-    (list "Sulfide: large scale"	(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 3.1 FALSE))))
+    (list "Sulfide: large scale"	TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 3.1 FALSE FALSE)))
 
     ;Process "Sulfide: grunge" with proc_id=5
-    (list "Sulfide: grunge"		(quote (set! fp_grain_layer (fil-int-sulfide fm_image fp_grain_layer fc_imh fc_imw fc_fore 2.7 TRUE))))
+    (list "Sulfide: grunge"		TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.7 TRUE FALSE)))
+
+    ;Process "Sulfide; scratches" with proc_id=6
+    (list "Sulfide; scratches"		TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE TRUE)))
   )
 )
 
@@ -191,8 +240,36 @@
 ;Core stage counter
 (define fk-stage-counter 0)
 
+;Separate image variable
+(define fk-sep-image)
+
+;Core state for batch mode
+(define fk-batch-state FALSE)
+
+
+;Plugin checking stage
+
+
+;G'MIC plugin integration activator
+(define fk-gmic-def (if (defined? 'plug-in-gmic) TRUE FALSE))
+
+;Fix-CA plugin integration activator
+(define fk-fixca-def (if (defined? 'Fix-CA) TRUE FALSE))
+
+;Plugin information global list
+(define fk-plugs-list
+  (list
+
+    ;G'MIC info entry
+    (list "G'MIC" "http://registry.gimp.org/node/13469" fk-gmic-def)
+
+    ;Fix-CA info entry
+    (list "Fix-CA" "http://registry.gimp.org/node/3726" fk-fixca-def)
+  )
+)
+
 ;FIL core procedure
-(define (fil-ng-core		;procedure name;
+(define (fil-spe-core		;procedure name;
 
 	;Launching main atributes
 	fm_image		;image variable;
@@ -218,9 +295,23 @@
 	fm_misc_visible		;visible switch;
 	)
 
+  ;Item API presense
+  (if (defined? 'gimp-item-to-selection)
+    (begin
+      (gimp-message "FIL 1.7.0 isn't complitable with GIMP 2.7/2.8")
+      (quit)
+    )
+  )
+
   ;Core start
-  (gimp-context-push)
-  (gimp-image-undo-disable fm_image)
+  (if (= fk-batch-state FALSE)
+      (gimp-image-undo-group-start fm_image)
+      (begin
+	(gimp-context-push)
+	(gimp-image-undo-disable fm_image)
+	(set! fk-sep-image fm_image)
+      )
+  )
 
   ;Variables declaration;
   (let* (
@@ -240,10 +331,9 @@
 	(fx_grain_list)						;List of variables recived from fil-stage-handle while grain stage
 	(fx_grain_exp)						;grain stage execution code block
 
-	;Stages I/O layers
-	(fp_pre_layer)						;pre-stage layer
-	(fp_clr_layer)						;color stage layer
-	(fp_grain_layer)					;grain stage layer
+	;I/O variables
+	(fio_uni_layer)						;single layer for all stages
+	(fio_return_flag)					;flag for automatic layer returning
 
 	;Option indication string prefixes
 	(fs_pref_pre "-p ")					;pre-stage option prefix
@@ -257,7 +347,7 @@
 	(fs_xps_str "Exp. ")					;exposure correction string mark
 	(fs_vign_str "(V) ")					;vignette string mark
 	(fs_blur_str "Scale x")					;border blur (bad lenses) string mark
-	(fs_default_str "FIL 1.6.0 processing result")		;final layer default string
+	(fs_default_str "FIL 1.7.0 processing result")		;final layer default string
 	)
 
 	;Pre-stage activation section
@@ -272,13 +362,13 @@
 	  (begin
 
 	    ;Copying layer
-	    (set! fp_pre_layer (fil-source-handle fm_image fm_misc_visible))
+	    (set! fio_uni_layer (fil-source-handle fm_image fm_misc_visible))
 	    (set! fs_res_str (string-append fs_res_str fs_pref_pre))
 
 	    ;Exposure correction launching
 	    (if (not (= fm_pre_xps_control 0))
 	      (begin
-		(fil-pre-xps fm_image fp_pre_layer fm_pre_xps_control)
+		(fil-pre-xps fk-sep-image fio_uni_layer fm_pre_xps_control)
 		(set! fs_xps_str (string-append fs_xps_str (if (> fm_pre_xps_control 0) "+" "-") (number->string fm_pre_xps_control)))
 		(if (> (string-length fs_xps_str) 10)
 		  (set! fs_xps_str (substring fs_xps_str 0 11))
@@ -291,7 +381,7 @@
 	    (if (= fm_pre_vign_flag TRUE)
 	      (if (> fm_pre_vign_opc 0)
 		(begin
-		  (set! fp_pre_layer (fil-pre-vignette fm_image fp_pre_layer fc_imh fc_imw fm_pre_vign_opc fm_pre_vign_rad fm_pre_vign_soft fc_fore))
+		  (set! fio_uni_layer (fil-pre-vignette fk-sep-image fio_uni_layer fc_imh fc_imw fm_pre_vign_opc fm_pre_vign_rad fm_pre_vign_soft fc_fore))
 		  (set! fs_res_str (string-append fs_res_str fs_vign_str))
 		)
 	      )
@@ -300,20 +390,14 @@
 	    ;Blur launching
 	    (if (> fm_pre_blur_step 0)
 	      (begin
-		(fil-pre-badblur fm_image fp_pre_layer fc_imh fc_imw fm_pre_blur_step)
+		(fil-prefx-badblur fk-sep-image fio_uni_layer fc_imh fc_imw fm_pre_blur_step)
 		(set! fs_res_str (string-append fs_res_str fs_blur_str (number->string (+ fm_pre_blur_step 1)) " "))
 	      )
-	    )
-
-	    (if (= fm_misc_logout TRUE)
-	      (gimp-drawable-set-name fp_pre_layer fs_res_str)
-	      (gimp-drawable-set-name fp_pre_layer fs_default_str)
 	    )
 	  )
 	)
 
-	;Layer transfering between stages and stage counter correction
-	(set! fp_clr_layer fp_pre_layer)
+	;Stage counter correction
 	(set! fk-stage-counter (+ fk-stage-counter 1))
 
 	;Color stage initalization
@@ -321,29 +405,28 @@
 	  (begin
 
 	    ;Recieved layer checking
-	    (if (null? fp_clr_layer)
-	      (set! fp_clr_layer (fil-source-handle fm_image fm_misc_visible))
+	    (if (null? fio_uni_layer)
+	      (set! fio_uni_layer (fil-source-handle fm_image fm_misc_visible))
 	    )
 
 	    ;Process list initalization
 	    (set! fx_clr_list (fil-stage-handle FALSE fk-stage-counter fm_clr_id))
 	    (set! fs_clr_str (car fx_clr_list))
-	    (set! fx_clr_exp (cadr fx_clr_list))
+	    (set! fio_return_flag (cadr fx_clr_list))
+	    (set! fx_clr_exp (caddr fx_clr_list))
 
 	    ;Color process execution
-	    (eval fx_clr_exp)
+	    (if (= fio_return_flag TRUE)
+	      (set! fio_uni_layer (eval fx_clr_exp))
+	      (eval fx_clr_exp)
+	    )
 
 	    ;String modification and layer renaming
 	    (set! fs_res_str (string-append fs_res_str fs_pref_clr fs_clr_str " "))
-	    (if (= fm_misc_logout TRUE)
-	      (gimp-drawable-set-name fp_clr_layer fs_res_str)
-	      (gimp-drawable-set-name fp_clr_layer fs_default_str)
-	    )
 	  )
 	)
 
-	;Layer transfering between stages and stage counter correction
-	(set! fp_grain_layer fp_clr_layer)
+	;Stage counter correction
 	(set! fk-stage-counter (+ fk-stage-counter 1))
 
 	;Grain stage initalization
@@ -351,30 +434,36 @@
 	  (begin
 
 	    ;Recieved layer checking
-	    (if (null? fp_grain_layer)
-	      (set! fp_grain_layer (fil-source-handle fm_image fm_misc_visible))
+	    (if (null? fio_uni_layer)
+	      (set! fio_uni_layer (fil-source-handle fm_image fm_misc_visible))
 	    )
 
 	    ;Process list initalization
 	    (set! fx_grain_list (fil-stage-handle FALSE fk-stage-counter fm_grain_id))
 	    (set! fs_grain_str (car fx_grain_list))
-	    (set! fx_grain_exp (cadr fx_grain_list))
+	    (set! fio_return_flag (cadr fx_grain_list))
+	    (set! fx_grain_exp (caddr fx_grain_list))
 
 	    ;Grain process execution
-	    (eval fx_grain_exp)
+	    (if (= fio_return_flag TRUE)
+	      (set! fio_uni_layer (eval fx_grain_exp))
+	      (eval fx_grain_exp)
+	    )
 
 	    ;String modification and layer renaming
 	    (set! fs_res_str (string-append fs_res_str fs_pref_grain fs_grain_str))
-	    (if (= fm_misc_logout TRUE)
-	      (gimp-drawable-set-name fp_grain_layer fs_res_str)
-	      (gimp-drawable-set-name fp_grain_layer fs_default_str)
-	    )
 	  )
 	)
 
 	;Returning original foreground and background colors
 	(gimp-context-set-foreground fc_fore)
 	(gimp-context-set-background fc_back)
+	(set! fio_uni_layer (car (gimp-layer-new-from-drawable fio_uni_layer fm_image)))
+	(gimp-image-add-layer fm_image fio_uni_layer -1)
+	(if (= fm_misc_logout TRUE)
+	  (gimp-drawable-set-name fio_uni_layer fs_res_str)
+	  (gimp-drawable-set-name fio_uni_layer fs_default_str)
+	)
 	(gimp-displays-flush)
   )
 
@@ -382,8 +471,16 @@
   (set! fk-stage-counter 0)
 
   ;End of execution
-  (gimp-image-undo-enable fm_image)
-  (gimp-context-pop)
+  (if (= fk-batch-state FALSE)
+    (begin
+      (gimp-image-undo-group-end fm_image)
+      (gimp-image-delete fk-sep-image)
+    )
+    (begin
+      (gimp-image-undo-enable fm_image)
+      (gimp-context-pop)
+    )
+  )
 )
 
 ;fil-stage-handle
@@ -459,12 +556,135 @@
 stage-handle
 )
 
+;fil-source-handle
+;CORE MODULE
+;Input variables:
+;IMAGE - processing image;
+;BOOLEAN. - fm_misc_visible raw value;
+;Returned variables:
+;LAYER - ready layer;
+(define (fil-source-handle image viz)
+(define exit)
+  (let* (
+	(active (car (gimp-image-get-active-layer image)))
+	(exit-layer)
+	(temp-layer)
+	)
+
+	(if (= fk-batch-state FALSE)
+	  (begin
+	    (set! fk-sep-image (car (gimp-image-duplicate image)))
+	    (gimp-image-undo-disable fk-sep-image)
+	    (if (= viz TRUE)
+	      (begin
+		(gimp-edit-copy-visible image)
+		(set! temp-layer 
+		  (car
+		    (gimp-edit-paste active TRUE)
+		  )
+		)
+		(gimp-floating-sel-to-layer temp-layer)
+		(gimp-drawable-set-name temp-layer "Source = Visible")
+		(set! exit-layer
+		  (car
+		    (gimp-layer-new-from-drawable temp-layer fk-sep-image)
+		  )
+		)
+		(gimp-image-add-layer fk-sep-image exit-layer -1)
+		(gimp-image-remove-layer image temp-layer)
+	      )
+	      (begin
+		(set! exit-layer 
+		  (car 
+		    (gimp-layer-new-from-drawable active fk-sep-image)
+		  )
+		)
+		(gimp-image-add-layer fk-sep-image exit-layer -1)
+		(gimp-drawable-set-name exit-layer "Source = Copy")
+	      )
+	    )
+	  )
+	  (begin
+	    (if (= viz TRUE)
+	      (begin
+		(gimp-edit-copy-visible image)
+		(set! exit-layer 
+		  (car
+		    (gimp-edit-paste active TRUE)
+		  )
+		)
+		(gimp-floating-sel-to-layer exit-layer)
+		(gimp-drawable-set-name exit-layer "Source = Visible")
+		(gimp-image-raise-layer-to-top image exit-layer)
+	      )
+	      (begin
+		(set! exit-layer (car (gimp-layer-copy active FALSE)))
+		(gimp-image-add-layer image exit-layer -1)
+		(gimp-drawable-set-name exit-layer "Source = Copy")
+	      )
+	    )
+	  )
+	)
+	(set! exit exit-layer)
+  )
+exit
+)
+
+;fil-plugs-handle
+;CORE MODULE
+;Hasn't arguments
+(define (fil-plugs-handle)
+  (let* (
+	(finded " found.")
+	(not_finded " not found.\nPlease install plugin using this link:")
+	(line "\n")
+	(space " ")
+	(temp_list)
+	(temp_entry)
+	(plug_name)
+	(plug_url)
+	(plug_var)
+	(plug_message "")
+	)
+	(set! temp_list fk-plugs-list)
+	(while (not (null? temp_list))
+	  (set! temp_entry (car temp_list))
+	  (set! plug_name (car temp_entry))
+	  (set! plug_url (cadr temp_entry))
+	  (set! plug_var (caddr temp_entry))
+	  (if (= plug_var TRUE)
+	    (set! plug_message (string-append plug_message plug_name space finded))
+	    (begin
+	      (set! plug_message (string-append plug_message plug_name space not_finded line plug_url))
+	    )
+	  )
+	  (set! plug_message (string-append plug_message line))
+	  (set! temp_list (cdr temp_list))
+	)
+	(set! plug_message (string-append plug_message line "FIL v1.7.0"))
+	(gimp-message plug_message)
+  )
+)
+
+;fil-dep_warn-handle
+;CORE MODULE
+;Input variables:
+;STRING - name of missing plugin;
+(define (fil-dep_warn-handle dep_name)
+  (gimp-message 
+    (string-append "Specifed action require " dep_name " plugin presense which wasn't installed in your system." 
+    "\nLaunch plugins check script (Filters/RSS/FIL Check plugins) for more detail information.
+    \nExecution will continue without additional effects."
+    )
+  )
+)
+
 ;FIL registation part resposible for author rights
 (define fil-credits
   (list
   "Nepochatov Stanislav"
-  "GNU GPLv3"
-  "August 6 2010"
+  "GPLv3"
+  "September 10th 2010"
   )
 )
 
@@ -485,12 +705,12 @@ stage-handle
   )
 )
 
-;fil-ng-core procedure registration
+;fil-spe-core procedure registration
 (apply script-fu-register
   (append
     (list
-    "fil-ng-core"
-    _"<Image>/Filters/RSS/_FIL 1.6"
+    "fil-spe-core"
+    _"<Image>/Filters/RSS/FI_L"
     "Film Imitation Lab"
     )
     fil-credits
@@ -506,7 +726,7 @@ stage-handle
 )
 
 ;Batch core procedure
-(define (fil-ng-batch		;procedure name
+(define (fil-spe-batch		;procedure name
 
 	;Batch execution control
 	fb_dir_in		;input directory address
@@ -531,7 +751,8 @@ stage-handle
 	fbm_pre_xps_control	;exposure correction control;
 	
 	;Additional options
-	fbm_misc_logout		;visible switch;
+	fbm_misc_logout		;option output swtitch;
+	fbm_misc_random		;random mode switch;
 	)
 
   ;Input format definition
@@ -562,6 +783,9 @@ stage-handle
 	(run_mode 1)
 	)
 
+	;Going into batch state
+	(set! fk-batch-state TRUE)
+
 	;Cycle begin
 	(while (not (null? filelist))
 	  (let* (
@@ -587,21 +811,38 @@ stage-handle
 		  (set! srclayer (car (gimp-image-get-active-layer img)))
 		)
 
-		;fil-ng-core launching
-		(fil-ng-core 
-		  img				;>>fm_image
-		  fbm_clr_flag			;>>fm_clr_flag
-		  fbm_clr_id			;>>fm_clr_id
-		  fbm_grain_flag		;>>fm_grain_flag
-		  fbm_grain_id			;>>fm_grain_id
-		  fbm_pre_vign_flag		;>>fm_pre_vign_flag
-		  fbm_pre_vign_rad		;>>fm_pre_vign_rad
-		  fbm_pre_vign_soft		;>>fm_pre_vign_soft
-		  fbm_pre_vign_opc		;>>fm_pre_vign_opc
-		  fbm_pre_blur_step		;>>fm_pre_blur_step
-		  fbm_pre_xps_control		;>>fm_pre_xps_control
-		  fbm_misc_logout		;>>fm_misc_logout
-		  FALSE				;>>fm_misc_visible
+		;fil-spe-core launching
+		(if (= fbm_misc_random TRUE)
+		  (fil-spe-core
+		    img							;>>fm_image
+		    fbm_clr_flag					;>>fm_clr_flag
+		    (random (length fk-clr-stage))			;>>fm_clr_id
+		    fbm_grain_flag					;>>fm_grain_flag
+		    (random (length fk-grain-stage))			;>>fm_grain_id
+		    (random 1)						;>>fm_pre_vign_flag
+		    fbm_pre_vign_rad					;>>fm_pre_vign_rad
+		    fbm_pre_vign_soft					;>>fm_pre_vign_soft
+		    fbm_pre_vign_opc					;>>fm_pre_vign_opc
+		    fbm_pre_blur_step					;>>fm_pre_blur_step
+		    fbm_pre_xps_control					;>>fm_pre_xps_control
+		    fbm_misc_logout					;>>fm_misc_logout
+		    FALSE						;>>fm_misc_visible
+		  )
+		  (fil-spe-core 
+		    img							;>>fm_image
+		    fbm_clr_flag					;>>fm_clr_flag
+		    fbm_clr_id						;>>fm_clr_id
+		    fbm_grain_flag					;>>fm_grain_flag
+		    fbm_grain_id					;>>fm_grain_id
+		    fbm_pre_vign_flag					;>>fm_pre_vign_flag
+		    fbm_pre_vign_rad					;>>fm_pre_vign_rad
+		    fbm_pre_vign_soft					;>>fm_pre_vign_soft
+		    fbm_pre_vign_opc					;>>fm_pre_vign_opc
+		    fbm_pre_blur_step					;>>fm_pre_blur_step
+		    fbm_pre_xps_control					;>>fm_pre_xps_control
+		    fbm_misc_logout					;>>fm_misc_logout
+		    FALSE						;>>fm_misc_visible
+		  )
 		)
 
 		;Final layers merging
@@ -628,18 +869,23 @@ stage-handle
 		(gimp-image-delete img)
 	  )
 
+
+
 	  ;List offset and cycle's stage ending
 	  (set! filelist (cdr filelist))
 	)
+
+	;Going out from batch state
+	(set! fk-batch-state FALSE)
   )
 )
 
-;fil-ng-batch procedure registration
+;fil-spe-batch procedure registration
 (apply script-fu-register
   (append
     (list
     "fil-ng-batch"
-    _"<Image>/Filters/RSS/FIL 1.6 Batch"
+    _"<Image>/Filters/RSS/FIL Ba_tch"
     "FIL batch mode"
     )
     fil-credits
@@ -663,43 +909,25 @@ stage-handle
 					)
     )
     fil-controls
+    (list
+    SF-TOGGLE	"Random mode"		FALSE
+    )
   )
 )
 
-;fil-source-handle
-;CORE MODULE
-;Input variables:
-;IMAGE - processing image;
-;BOOLEAN. - fm_misc_visible raw value;
-;Returned variables:
-;LAYER - ready layer;
-(define (fil-source-handle image viz)
-(define exit)
-  (let* (
-	(active (car (gimp-image-get-active-layer image)))
-	(exit-layer)
-	)
-	(if (= viz TRUE)
-	  (begin
-	    (gimp-edit-copy-visible image)
-	    (set! exit-layer 
-	      (car
-		(gimp-edit-paste active TRUE)
-	      )
-	    )
-	    (gimp-floating-sel-to-layer exit-layer)
-	    (gimp-drawable-set-name exit-layer "Source = Visible")
-	    (gimp-image-raise-layer-to-top image exit-layer)
-	  )
-	  (begin
-	    (set! exit-layer (car (gimp-layer-copy active FALSE)))
-	    (gimp-image-add-layer image exit-layer -1)
-	    (gimp-drawable-set-name exit-layer "Source = Copy")
-	  )
-	)
-	(set! exit exit-layer)
+;fil-plugs-handle registration procedure
+(apply script-fu-register
+  (append
+    (list
+    "fil-plugs-handle"
+    _"<Image>/Filters/RSS/FIL chec_k plugins"
+    "Checking plugins integretion state"
+    )
+    fil-credits
+    (list
+    ""
+    )
   )
-exit
 )
 
 ;Core section end
@@ -813,7 +1041,7 @@ exit
 vign-exit
 )
 
-;fil-pre-badblur
+;fil-prefx-badblur
 ;PRE-PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -821,14 +1049,20 @@ vign-exit
 ;INTEGER - image height value;
 ;INTEGER - image width value;
 ;INTEGER - blur step value;
-(define (fil-pre-badblur image layer imh imw ext)
+(define (fil-prefx-badblur image layer imh imw ext)
   (set! ext (+ ext 1))
-  (gimp-image-undo-freeze image)
-  (plug-in-mblur 1 image layer 2 (/ (+ (/ imh (/ 1500 ext)) (/ imw (/ 1500 ext))) 2) 0 (/ imw 2) (/ imh 2))
-  (gimp-image-undo-thaw image)
+  (if (= fk-fixca-def TRUE)
+    (begin
+      (Fix-CA 1 image layer (+ 1.5 ext) (- -1.5 ext) 1 0 0 0 0)
+    )
+  )
+  (if (= fk-gmic-def TRUE)
+    (plug-in-gmic 1 image layer 1 (string-append "-blur_radial " (number->string (/ ext 3)) ",0.5,0.5"))
+    (plug-in-mblur 1 image layer 2 (/ (+ (/ imh (/ 3500 ext)) (/ imw (/ 3500 ext))) 2) 0 (/ imw 2) (/ imh 2))
+  )
 )
 
-;fil-int-sov
+;fil-clr-sov
 ;COLOR PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -839,7 +1073,7 @@ vign-exit
 ;INTEGER - red veil opacity value;
 ;Returned variables:
 ;LAYER - processed layer;
-(define (fil-int-sov image layer imh imw opc_tone opc_red)
+(define (fil-clr-sov image layer imh imw opc_tone opc_red)
 (define sov-exit)
   (let* (
 	(first (car (gimp-layer-copy layer FALSE)))
@@ -849,7 +1083,7 @@ vign-exit
 	(gimp-hue-saturation layer 0 5 0 -30)
 	(gimp-image-add-layer image first -1)
 	(gimp-image-add-layer image red -1)
-	(gimp-drawable-set-name first "Gloval tone")
+	(gimp-drawable-set-name first "Global tone")
 	(set! red_mask
 	  (car
 	    (gimp-layer-create-mask layer 5)
@@ -880,31 +1114,50 @@ vign-exit
 sov-exit
 )
 
-;fil-int-gray
+;fil-clr-gray
 ;COLOR PROCESS
 ;Input variables:
 ;IMAGE - processing image;
 ;LAYER - processing layer;
-(define (fil-int-gray image layer)
+(define (fil-clr-gray image layer)
   (plug-in-colors-channel-mixer 1 image layer TRUE 0 0.3 0.6 0 0 0 0 0 0)
   (gimp-drawable-set-name layer "B/W")
 )
 
-;fil-int-lomo
+;fil-clr-lomo
 ;COLOR PROCESS
 ;Input variables:
 ;IMAGE - processing image;
 ;LAYER - processing layer;
-(define (fil-int-lomo image layer)
-  ;code by Donncha O Caoimh (donncha@inphotos.org) and elsamuko (elsamuko@web.de)
-  ;http://registry.gimp.org/node/7870
-  (gimp-curves-spline layer 1 10 #(0 0 80 84 149 192 191 248 255 255))
-  (gimp-curves-spline layer 2 8 #(0 0 70 81 159 220 255 255))
-  (gimp-curves-spline layer 3 4 #(0 27 255 213))
-  (gimp-drawable-set-name layer "Lomo")
+;INTEGER - color process number;
+;This procedure bases on Lomo Script by Elsamuko (http://registry.gimp.org/node/7870)
+;code by Donncha O Caoimh (donncha@inphotos.org) and Elsamuko (elsamuko@web.de)
+(define (fil-clr-lomo image layer cid)
+  (if (= cid 0)
+    (begin
+      (gimp-curves-spline layer 1 10 #(0 0 80 84 149 192 191 248 255 255))
+      (gimp-curves-spline layer 2 8 #(0 0 70 81 159 220 255 255))
+      (gimp-curves-spline layer 3 4 #(0 27 255 213))
+    )
+  )
+  (if (= cid 1)
+    (begin
+      (gimp-curves-spline layer 1 6 #(0 0 90 150 240 255))
+      (gimp-curves-spline layer 2 6 #(0 0 136 107 240 255))
+      (gimp-curves-spline layer 3 6 #(0 0 136 107 255 246))
+    )
+  )
+  (if (= cid 2)
+    (begin
+      (gimp-curves-spline layer 0 8 #(0 0 68 64 190 219 255 255))
+      (gimp-curves-spline layer 1 8 #(0 0 39 93 193 147 255 255))
+      (gimp-curves-spline layer 2 6 #(0 0 68 70 255 207))
+      (gimp-curves-spline layer 3 6 #(0 0 94 94 255 199))
+    )
+  )
 )
 
-;fil-int-sepia
+;fil-clr-sepia
 ;COLOR PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -915,7 +1168,7 @@ sov-exit
 ;BOOLEAN - paper imitation switch;
 ;Returned variables:
 ;LAYER - processed layer;
-(define (fil-int-sepia image layer imh imw foreground paper_switch)
+(define (fil-clr-sepia image layer imh imw foreground paper_switch)
 (define sepia-exit)
   (let* (
 	(paper 0)
@@ -942,7 +1195,7 @@ sov-exit
 sepia-exit
 )
 
-;fil-int-duo
+;fil-clr-duo
 ;COLOR PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -952,7 +1205,7 @@ sepia-exit
 ;COLOR - dark area color;
 ;Returned variables:
 ;LAYER - processed layer;
-(define (fil-int-duo image layer opc_affect light_color dark_color)
+(define (fil-clr-duo image layer opc_affect light_color dark_color)
 (define duo-exit)
   (let* (
 	(affect (car (gimp-layer-copy layer FALSE)))
@@ -990,17 +1243,279 @@ sepia-exit
 duo-exit
 )
 
-;fil-int-simplegrain
+;fil-clr-vintage
+;COLOR PROCESSES
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
+;INTEGER - image height value;
+;INTEGER - image width value;
+;INTEGER - cyan layer opacity;
+;INTEGER - magneta layer opacity;
+;INTEGER - yellow layer opacity;
+;BOOLEAN - overlay switch;
+;Returned variables:
+;LAYER - processed layer;
+;This procedure bases on Vintage Look script by Michael Maier (http://registry.gimp.org/node/1348)
+;code by Michael Maier (info@mmip.net) and Elsamuko (elsamuko@web.de)
+(define (fil-clr-vintage img drw imh imw VarCyan VarMagenta VarYellow Overlay)
+(define vint-exit)
+  (let* (
+	(overlay-layer (car (gimp-layer-copy drw FALSE)))
+	(cyan-layer)
+	(magenta-layer)
+	(yellow-layer)
+	)
+
+	;Bleach Bypass
+	(if(= Overlay TRUE)
+	  (begin
+	    (gimp-image-add-layer img overlay-layer -1)
+	    (gimp-desaturate-full overlay-layer DESATURATE-LUMINOSITY)
+	    (plug-in-gauss TRUE img overlay-layer 1 1 TRUE)
+	    (plug-in-unsharp-mask 1 img overlay-layer 1 1 0)
+	    (gimp-layer-set-mode overlay-layer OVERLAY-MODE)
+	  )
+	)
+
+	;Yellow Layer
+	(set! yellow-layer (car (gimp-layer-new img imw imh RGB "Yellow" 100  MULTIPLY-MODE)))	
+	(gimp-image-add-layer img yellow-layer -1)
+	(gimp-context-set-background '(251 242 163))
+	(gimp-drawable-fill yellow-layer BACKGROUND-FILL)
+	(gimp-layer-set-opacity yellow-layer VarYellow)
+
+	;Magenta Layer
+	(set! magenta-layer (car (gimp-layer-new img imw imh RGB "Magenta" 100  SCREEN-MODE)))	
+	(gimp-image-add-layer img magenta-layer -1)
+	(gimp-context-set-background '(232 101 179))
+	(gimp-drawable-fill magenta-layer BACKGROUND-FILL)
+	(gimp-layer-set-opacity magenta-layer VarMagenta)
+
+	;Cyan Layer 
+	(set! cyan-layer (car (gimp-layer-new img imw imh RGB "Cyan" 100  SCREEN-MODE)))
+	(gimp-image-add-layer img cyan-layer -1)
+	(gimp-context-set-background '(9 73 233))
+	(gimp-drawable-fill cyan-layer BACKGROUND-FILL)
+	(gimp-layer-set-opacity cyan-layer VarCyan)
+
+	;End
+	(if (= Overlay TRUE)
+	  (set! drw (car (gimp-image-merge-down img overlay-layer 0)))
+	)
+	(set! drw (car (gimp-image-merge-down img yellow-layer 0)))
+	(set! drw (car (gimp-image-merge-down img magenta-layer 0)))
+	(set! drw (car (gimp-image-merge-down img cyan-layer 0)))
+	(set! vint-exit drw)
+  )
+vint-exit
+)
+
+;fil-clr-chrome
+;COLOR PROCESS
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
+;INTEGER - image height value;
+;INTEGER - image width value;
+;COLOR - screen merge color;
+;COLOR - multiply color;
+;INTEGER - contrast opacity variable;
+;INTEGER - b/w opacity variable;
+;INTEGER - gradient begin offset;
+;INTEGER - gradient end offset;
+;BOOLEAN - b/w dodging switch;
+;BOOLEAN - retro mode switch;
+;Returned variables:
+;LAYER - processed layer;
+;This procedure bases on Photochrom script by Elsamuko (http://registry.gimp.org/node/24197)
+;code by Elsamuko (elsamuko@web.de)
+(define (fil-clr-chrome image layer imh imw color1 color2 contrast bw-merge num1 num2 gray retro)
+(define chrome-exit)
+  (let* (
+	(offset1 (* imh (/ num1 100)))
+	(offset2 (* imh (/ num2 100)))
+	(dodge-layer (car (gimp-layer-copy layer FALSE)))
+	(contrast-layer1 (car (gimp-layer-copy layer FALSE)))
+	(contrast-layer2 (car (gimp-layer-copy layer FALSE)))
+	(bw-screen-layer (car (gimp-layer-copy layer FALSE)))         
+	(bw-merge-layer (car (gimp-layer-copy layer FALSE)))         
+	(extra-layer)
+	(merge-layer (car (gimp-layer-new image imw imh RGBA-IMAGE "Grain Merge" 50 GRAIN-MERGE-MODE)))
+	(merge-mask (car (gimp-layer-create-mask merge-layer ADD-WHITE-MASK)))
+	(screen-layer (car (gimp-layer-new image imw imh RGBA-IMAGE "Screen" 10 SCREEN-MODE)))
+	(screen-mask (car (gimp-layer-create-mask screen-layer ADD-WHITE-MASK)))
+	(multiply-layer (car (gimp-layer-new image imw imh RGBA-IMAGE "Multiply" 10 MULTIPLY-MODE)))
+	(multiply-mask (car (gimp-layer-create-mask multiply-layer ADD-WHITE-MASK)))
+	(retro-layer (car (gimp-layer-new image imw imh RGBA-IMAGE "Retro 1" 60 MULTIPLY-MODE)))
+	(floatingsel)
+	(retro-mask (car (gimp-layer-create-mask retro-layer ADD-WHITE-MASK)))
+	(retro-layer2 (car (gimp-layer-new image imw imh RGBA-IMAGE "Retro 2" 20 SCREEN-MODE)))
+	(gradient-layer (car (gimp-layer-new image imw imh RGBA-IMAGE "Gradient Overlay" 100 OVERLAY-MODE)))
+	)
+
+	;set BW screen layer
+	(gimp-image-add-layer image bw-screen-layer -1)
+	(gimp-drawable-set-name bw-screen-layer "BW Screen")
+	(gimp-layer-set-mode bw-screen-layer SCREEN-MODE)
+	(gimp-layer-set-opacity bw-screen-layer 50)
+	(gimp-desaturate-full bw-screen-layer DESATURATE-LUMINOSITY)
+
+	;set BW merge layer
+	(gimp-image-add-layer image bw-merge-layer -1)
+	(gimp-drawable-set-name bw-merge-layer "BW Merge")
+	(gimp-layer-set-mode bw-merge-layer GRAIN-MERGE-MODE)
+	(gimp-layer-set-opacity bw-merge-layer bw-merge)
+	(gimp-desaturate-full bw-merge-layer DESATURATE-LUMINOSITY)
+	(gimp-curves-spline bw-merge-layer HISTOGRAM-VALUE 6 #(0 144 88 42 255 255))
+
+	;set contrast layers
+	(gimp-image-add-layer image contrast-layer1 -1)
+	(gimp-drawable-set-name contrast-layer1 "Contrast1")
+	(gimp-layer-set-mode contrast-layer1 OVERLAY-MODE)
+	(gimp-layer-set-opacity contrast-layer1 contrast)
+	(gimp-desaturate-full contrast-layer1 DESATURATE-LUMINOSITY)
+
+	(gimp-image-add-layer image contrast-layer2 -1)
+	(gimp-drawable-set-name contrast-layer2 "Contrast2")
+	(gimp-layer-set-mode contrast-layer2 OVERLAY-MODE)
+	(gimp-layer-set-opacity contrast-layer2 contrast)
+	(gimp-desaturate-full contrast-layer2 DESATURATE-LUMINOSITY)
+    
+	;set dodge layer
+	(gimp-image-add-layer image dodge-layer -1)
+	(gimp-drawable-set-name dodge-layer "Dodge")
+	(gimp-layer-set-mode dodge-layer DODGE-MODE)
+	(gimp-layer-set-opacity dodge-layer 50)
+    
+	;set merge layer
+	(gimp-image-add-layer image merge-layer -1)
+	(gimp-selection-all image)
+	(gimp-context-set-foreground color1)
+	(gimp-edit-bucket-fill merge-layer FG-BUCKET-FILL NORMAL-MODE 100 0 FALSE 0 0)
+	(gimp-layer-add-mask merge-layer merge-mask)
+	(gimp-context-set-foreground '(255 255 255))
+	(gimp-context-set-background '(0 0 0))
+	(gimp-edit-blend merge-mask FG-BG-RGB-MODE NORMAL-MODE GRADIENT-LINEAR 100 0 REPEAT-NONE TRUE FALSE 1 0 TRUE 0 offset1 0 offset2)
+    
+	;set screen layer
+	(gimp-image-add-layer image screen-layer -1)
+	(gimp-selection-all image)
+	(gimp-context-set-foreground color1)
+	(gimp-edit-bucket-fill screen-layer FG-BUCKET-FILL NORMAL-MODE 100 0 FALSE 0 0)
+	(gimp-layer-add-mask screen-layer screen-mask)
+	(gimp-context-set-foreground '(255 255 255))
+	(gimp-context-set-background '(0 0 0))
+	(gimp-edit-blend screen-mask FG-BG-RGB-MODE NORMAL-MODE GRADIENT-LINEAR 100 0 REPEAT-NONE TRUE FALSE 1 0 TRUE 0 offset1 0 offset2)
+
+	;set multiply layer
+	(gimp-image-add-layer image multiply-layer -1)
+	(gimp-selection-all image)
+	(gimp-context-set-foreground color2)
+	(gimp-edit-bucket-fill multiply-layer FG-BUCKET-FILL NORMAL-MODE 100 0 FALSE 0 0)
+	(gimp-layer-add-mask multiply-layer multiply-mask)
+	(gimp-context-set-foreground '(255 255 255))
+	(gimp-context-set-background '(0 0 0))
+	(gimp-edit-blend multiply-mask FG-BG-RGB-MODE NORMAL-MODE GRADIENT-LINEAR 100 0 REPEAT-NONE TRUE FALSE 1 0 TRUE 0 offset1 0 offset2)
+    
+	;optional retro colors
+	(if(= retro TRUE)
+	  (begin
+
+	    ;yellow with mask
+	    (gimp-image-add-layer image retro-layer -1)
+	    (gimp-selection-all image)
+	    (gimp-context-set-foreground '(251 242 163))
+	    (gimp-edit-bucket-fill retro-layer FG-BUCKET-FILL NORMAL-MODE 100 0 FALSE 0 0)
+	    (gimp-layer-add-mask retro-layer retro-mask)
+	    (gimp-edit-copy contrast-layer1)
+	    (set! floatingsel (car (gimp-edit-paste retro-mask TRUE)))
+	    (gimp-floating-sel-anchor floatingsel)
+           
+	    ;rose
+	    (gimp-image-add-layer image retro-layer2 -1)
+	    (gimp-selection-all image)
+	    (gimp-context-set-foreground '(232 101 179))
+	    (gimp-edit-bucket-fill retro-layer2 FG-BUCKET-FILL NORMAL-MODE 100 0 FALSE 0 0)
+
+	    ;gradient overlay
+	    (gimp-image-add-layer image gradient-layer -1)
+	    (gimp-context-set-foreground '(255 255 255))
+	    (gimp-context-set-background '(0 0 0))
+	    (gimp-edit-blend gradient-layer FG-BG-RGB-MODE NORMAL-MODE GRADIENT-LINEAR 100 0 REPEAT-NONE FALSE FALSE 1 0 TRUE 0 offset1 0 offset2)
+
+	    ;deactivate orange layers
+	    (gimp-drawable-set-visible merge-layer FALSE)
+	    (gimp-drawable-set-visible screen-layer FALSE)
+	    (gimp-drawable-set-visible multiply-layer FALSE)
+	  )
+	)
+    
+	;make source layer gray
+	(if(= gray TRUE)
+	    (gimp-hue-saturation layer 0 0 0 -70)
+	)
+
+	;layers merging
+	(set! layer (car (gimp-image-merge-down image bw-screen-layer 0)))
+	(set! layer (car (gimp-image-merge-down image bw-merge-layer 0)))
+	(set! layer (car (gimp-image-merge-down image contrast-layer1 0)))
+	(set! layer (car (gimp-image-merge-down image contrast-layer2 0)))
+	(set! layer (car (gimp-image-merge-down image dodge-layer 0)))
+	(set! layer (car (gimp-image-merge-down image merge-layer 0)))
+	(set! layer (car (gimp-image-merge-down image screen-layer 0)))
+	(set! layer (car (gimp-image-merge-down image multiply-layer 0)))
+	(if (= retro TRUE)
+	  (begin
+	    (set! layer (car (gimp-image-merge-down image retro-layer 0)))
+	    (set! layer (car (gimp-image-merge-down image retro-layer2 0)))
+	    (set! layer (car (gimp-image-merge-down image gradient-layer 0)))
+	  )
+	)
+	(set! chrome-exit layer)
+  )
+chrome-exit
+)
+
+;fil-clr-dram_c
+;COLOR PROCESS
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
+;COLOR - overlay and tone color;
+;Returned variables:
+;LAYER - processed layer;
+(define (fil-clr-dram_c image layer input_color)
+(define dram-c-exit)
+  (let* (
+	(color_layer 0)
+	(over_layer 0)
+	)
+	(set! over_layer (car (gimp-layer-copy layer FALSE)))
+	(gimp-image-add-layer image over_layer -1)
+	(plug-in-colorify 1 image over_layer input_color)
+	(gimp-layer-set-mode over_layer 5)
+	(set! color_layer (car (gimp-layer-copy over_layer FALSE)))
+	(gimp-image-add-layer image color_layer -1)
+	(gimp-layer-set-mode color_layer 13)
+	(gimp-layer-set-opacity color_layer 40)
+	(set! layer (car (gimp-image-merge-down image over_layer 0)))
+	(set! layer (car (gimp-image-merge-down image color_layer 0)))
+	(set! dram-c-exit layer)
+  )
+dram-c-exit
+)
+
+;fil-grn-simplegrain
 ;GRAIN PROCESS
 ;Input variables:
 ;IMAGE - processing image;
 ;LAYER - processing layer;
-(define (fil-int-simplegrain image clr_res)
+(define (fil-grn-simplegrain image clr_res)
   (plug-in-hsv-noise 1 image clr_res 2 3 0 25)
-  (gimp-drawable-set-name clr_res "Simple grain")
 )
 
-;fil-int-adv_grain
+;fil-grn-adv_grain
 ;GRAIN PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -1011,7 +1526,7 @@ duo-exit
 ;BOOLEAN - grain amplification switch;
 ;Returned variables:
 ;LAYER - processed layer;
-(define (fil-int-adv_grain image clr_res imh imw foreground boost)
+(define (fil-grn-adv_grain image clr_res imh imw foreground boost)
 (define adv-exit)
   (let* (
 	(name "Grain+")
@@ -1060,7 +1575,7 @@ duo-exit
 adv-exit
 )
 
-;fil-int-sulfide
+;fil-grnfx-sulfide
 ;GRAIN PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -1070,9 +1585,10 @@ adv-exit
 ;COLOR - foreground color;
 ;REAL - grain scale;
 ;BOOLEAN - grunge-mode switch;
+;BOOLEAN - scratch-mode switch;
 ;Returned variables:
 ;LAYER - processed layer;
-(define (fil-int-sulfide image layer imh imw foreground scale_step grunge_switch)
+(define (fil-grnfx-sulfide image layer imh imw foreground scale_step grunge_switch scratch_switch)
 (define sulf-exit)
   (let* (
 	(sc_imh (/ imh scale_step))
@@ -1083,9 +1599,17 @@ adv-exit
 	(grain_mask)
 	(rel_step (if (> imh imw) (/ imh 1100) (/ imw 1100)))
 	)
+
+	(if (= scratch_switch TRUE)
+	  (if (= fk-gmic-def TRUE)
+	    (plug-in-gmic 1 image layer 1 "-apply_channels \"-stripes_y 3\",7")
+	    (fil-dep_warn-handle "G'MIC")
+	  )
+	)
+
 	(set! scale_layer
 	  (car 
-	    (gimp-layer-new image sc_imw sc_imh 0 "Scale layer" 100 0)
+	    (gimp-layer-new image sc_imw sc_imh 0 "Слой масштаба" 100 0)
 	  )
 	)
 	(gimp-image-add-layer image scale_layer -1)
@@ -1101,7 +1625,7 @@ adv-exit
 	)
 	(set! grain_layer 
 	  (car 
-	    (gimp-layer-new image imw imh 0 "Normal Grain" 100 0)
+	    (gimp-layer-new image imw imh 0 "Нормальное зерно" 100 0)
 	  )
 	)
 	(gimp-image-add-layer image grain_layer -1)
@@ -1121,7 +1645,7 @@ adv-exit
 	  (begin
 	    (set! grunge_layer 
 	      (car 
-		(gimp-layer-new image imw imh 0 "Grunge" 100 0)
+		(gimp-layer-new image imw imh 0 "Гранж" 100 0)
 	      )
 	    )
 	    (gimp-image-add-layer image grunge_layer -1)
@@ -1130,7 +1654,7 @@ adv-exit
 	    (plug-in-plasma 1 image grunge_layer 0 5.0)
 	    (gimp-desaturate grunge_layer)
 	    (gimp-layer-set-mode grunge_layer 5)
-	    (gimp-layer-set-opacity grunge_layer 45)
+	    (gimp-layer-set-opacity grunge_layer 65)
 	    (set! layer
 	      (car
 		(gimp-image-merge-down image grunge_layer 0)
