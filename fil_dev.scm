@@ -1,4 +1,6 @@
-;FIL v1.7.0 RC1
+;FIL v1.7.0 RC2
+;
+;FIL is a part of RSK (RSS Script Kit)
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -78,10 +80,10 @@
 ; - stable release status;
 ;===============================================================================================================
 ;ver 1.7.0 (August 30 2010)
-; - undo support and separate image processing;
+; - undo support by separate image processing;
 ; - binary plugin integration (G'MIC and Fix-CA);
 ; - new proceesses ("Vintage", "Photochrom" and "Dram");
-; - plugin checker added;
+; - plugins checker added;
 ; - film scratches in "Sulfide" process added;
 ; - chromatic abberation in "Border Blur" pre-process added;
 ;===============================================================================================================
@@ -91,7 +93,7 @@
 ;fil-stage-handle		stable		---		---
 ;fil-source-handle		stable		---		---
 ;fil-plugs-handle		stable		---		---
-;fil-dep_error-handle		stable		---		---
+;fil-dep_warn-handle		stable		---		---
 ;fil-spe-batch			stable		---		---
 ;===========================================PRE-PROCESSES=======================================================
 ;fil-pre-xps			stable		r0		1.7
@@ -108,7 +110,7 @@
 ;fil-clr-dram_c			stable		r0		1.7
 ;==========================================GRAIN PROCESSES======================================================
 ;fil-grn-simplegrain		stable		r3		1.7
-;fil-grn-grain_plus		stable		r4		1.7
+;fil-grn-adv_grain		stable		r4		1.7
 ;fil-grnfx-sulfide		stable		r3		1.7
 ;=====================================FIL module classification=================================================
 ; -pre - pre-process.
@@ -119,7 +121,8 @@
 ; -grnfx - grain process which uses plugins.
 ;=================================FIL 1.7 modules requirements list:============================================
 ; * process can use binary plugin procedures by using core permissions in fk-*-def variables.
-; * if process can't work without some plugin then message should appear (via fil-dep_error-handle).
+; * if process can't work without some plugin then message should appear (via fil-dep_warn-handle).
+; * process can call to binary plugin only in NON-INTERACTIVE mode.
 ; * processes shouldn't call other FIL processes from itself but it can call private additional procedures.
 ; * processes shouldn't change image dimensions or it's color depth.
 ; * procceses able to take some image option from FIL core by itself (variable class fc_*).
@@ -127,7 +130,7 @@
 ; * processes (except pre-proccesses) should be register in fk-clr-stage and fk-grain-stage variables.
 ; * processes should return final layer to core (if processes use many layers).
 ; * processes could have special launch options (for creating profiles).
-;========================================FIL 1.6 core stages====================================================
+;========================================FIL 1.7 core stages====================================================
 ;Stage			Register?			Stage number (stage_id)
 ;pre-stage		NO				0
 ;fk-clr-stage		YES				1
@@ -183,7 +186,7 @@
     ;Process "Photochrom: retro" with proc_id=13
     (list "Фотохром: ретро"		TRUE	(quote (fil-clr-chrome fk-sep-image fio_uni_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 FALSE TRUE)))
 
-    ;Process "Photochrom: gray" with proc_id=14
+    ;Process "Photochrom: bleach" with proc_id=14
     (list "Фотохром: блеклый"		TRUE	(quote (fil-clr-chrome fk-sep-image fio_uni_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 TRUE FALSE)))
 
     ;Process "Photochrom: user colors" with proc_id=15
@@ -212,16 +215,16 @@
     (list "Зерно+: усиленный" 		TRUE	(quote (fil-grn-adv_grain fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore TRUE)))
 
     ;Process "Sulfide: normal" with proc_id=3
-    (list "Сульфид: обычный"		TRUE	(quote (fil-grn-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE FALSE)))
+    (list "Сульфид: обычный"		TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE FALSE)))
 
     ;Process "Sulfide: large scale" with proc_id=4
-    (list "Сульфид: крупный"		TRUE	(quote (fil-grn-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 3.1 FALSE FALSE)))
+    (list "Сульфид: крупный"		TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 3.1 FALSE FALSE)))
 
     ;Process "Sulfide: grunge" with proc_id=5
-    (list "Сульфид: гранж"		TRUE	(quote (fil-grn-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.7 TRUE FALSE)))
+    (list "Сульфид: гранж"		TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.7 TRUE FALSE)))
 
     ;Process "Sulfide; scratches" with proc_id=6
-    (list "Сульфид: царапины"		TRUE	(quote (fil-grn-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE TRUE)))
+    (list "Сульфид: царапины"		TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE TRUE)))
   )
 )
 
@@ -236,9 +239,6 @@
 
 ;Core stage counter
 (define fk-stage-counter 0)
-
-;Original image variable
-(define fk-org-image)
 
 ;Separate image variable
 (define fk-sep-image)
@@ -294,6 +294,14 @@
 	fm_misc_logout		;option output swtitch;
 	fm_misc_visible		;visible switch;
 	)
+
+  ;Item API presense
+  (if (defined? 'gimp-item-to-selection)
+    (begin
+      (gimp-message "ЛИПС 1.7.0 несовместим с GIMP 2.7/2.8")
+      (quit)
+    )
+  )
 
   ;Core start
   (if (= fk-batch-state FALSE)
@@ -566,7 +574,6 @@ stage-handle
 	(if (= fk-batch-state FALSE)
 	  (begin
 	    (set! fk-sep-image (car (gimp-image-duplicate image)))
-	    (set! fk-org-image image)
 	    (gimp-image-undo-disable fk-sep-image)
 	    (if (= viz TRUE)
 	      (begin
@@ -659,11 +666,11 @@ exit
   )
 )
 
-;fil-dep_error_handle
+;fil-dep_warn-handle
 ;CORE MODULE
 ;Input variables:
 ;STRING - name of missing plugin;
-(define (fil-dep_error-handle dep_name)
+(define (fil-dep_warn-handle dep_name)
   (gimp-message 
     (string-append "Выбранное вами действие требует наличия расширения " dep_name ", которое не установленно на данный момент." 
     "\nЗапустите скрипт проверки плагинов (Фильтры/RSS/ЛИПС Проверка плагинов) для более детальной информации.
@@ -1568,7 +1575,7 @@ dram-c-exit
 adv-exit
 )
 
-;fil-grn-sulfide
+;fil-grnfx-sulfide
 ;GRAIN PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -1581,7 +1588,7 @@ adv-exit
 ;BOOLEAN - scratch-mode switch;
 ;Returned variables:
 ;LAYER - processed layer;
-(define (fil-grn-sulfide image layer imh imw foreground scale_step grunge_switch scratch_switch)
+(define (fil-grnfx-sulfide image layer imh imw foreground scale_step grunge_switch scratch_switch)
 (define sulf-exit)
   (let* (
 	(sc_imh (/ imh scale_step))
@@ -1596,7 +1603,7 @@ adv-exit
 	(if (= scratch_switch TRUE)
 	  (if (= fk-gmic-def TRUE)
 	    (plug-in-gmic 1 image layer 1 "-apply_channels \"-stripes_y 3\",7")
-	    (fil-dep_error-handle "G'MIC")
+	    (fil-dep_warn-handle "G'MIC")
 	  )
 	)
 
