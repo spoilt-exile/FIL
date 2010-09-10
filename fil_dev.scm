@@ -1,4 +1,4 @@
-;FIL v1.7.0 pre-release 1
+;FIL v1.7.0 pre-release 2
 ;
 ;FIL is a part of RSK (RSS Script Kit)
 ;
@@ -684,7 +684,7 @@ exit
   (list
   "Непочатов Станислав"
   "GPLv3"
-  "19 Август 2010"
+  "10 Сентябрь 2010"
   )
 )
 
@@ -710,7 +710,7 @@ exit
   (append
     (list
     "fil-spe-core"
-    _"<Image>/Filters/RSS/_ЛИПС 1.7"
+    _"<Image>/Filters/RSS/_ЛИПС"
     "Лаборатория имитации пленочных снимков"
     )
     fil-credits
@@ -885,7 +885,7 @@ exit
   (append
     (list
     "fil-spe-batch"
-    _"<Image>/Filters/RSS/ЛИПС 1.7 Кон_вейер"
+    _"<Image>/Filters/RSS/ЛИПС Кон_вейер"
     "Конвейерное исполнение ЛИПС"
     )
     fil-credits
