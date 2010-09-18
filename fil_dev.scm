@@ -1,4 +1,4 @@
-;FIL v1.7.0 pre-release 2
+;FIL v1.7.0 release snapshot (ENG)
 ;
 ;FIL is a part of RSK (RSS Script Kit)
 ;
@@ -223,8 +223,8 @@
     ;Process "Sulfide: grunge" with proc_id=5
     (list "Sulfide: grunge"		TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.7 TRUE FALSE)))
 
-    ;Process "Sulfide; scratches" with proc_id=6
-    (list "Sulfide; scratches"		TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE TRUE)))
+    ;Process "Sulfide: scratches" with proc_id=6
+    (list "Sulfide: scratches"		TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE TRUE)))
   )
 )
 
@@ -672,7 +672,7 @@ exit
 ;STRING - name of missing plugin;
 (define (fil-dep_warn-handle dep_name)
   (gimp-message 
-    (string-append "Specifed action require " dep_name " plugin presense which wasn't installed in your system." 
+    (string-append "Specifed action require " dep_name " plugin presense which isn't installed in your system." 
     "\nLaunch plugins check script (Filters/RSS/FIL Check plugins) for more detail information.
     \nExecution will continue without additional effects."
     )
@@ -1056,10 +1056,7 @@ vign-exit
       (Fix-CA 1 image layer (+ 1.5 ext) (- -1.5 ext) 1 0 0 0 0)
     )
   )
-  (if (= fk-gmic-def TRUE)
-    (plug-in-gmic 1 image layer 1 (string-append "-blur_radial " (number->string (/ ext 3)) ",0.5,0.5"))
-    (plug-in-mblur 1 image layer 2 (/ (+ (/ imh (/ 3500 ext)) (/ imw (/ 3500 ext))) 2) 0 (/ imw 2) (/ imh 2))
-  )
+  (plug-in-mblur 1 image layer 2 (/ (+ (/ imh (/ 3500 ext)) (/ imw (/ 3500 ext))) 2) 0 (/ imw 2) (/ imh 2))
 )
 
 ;fil-clr-sov
