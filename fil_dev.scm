@@ -1,4 +1,4 @@
-;FIL v1.7.0 pre-release 2
+;FIL v1.7.0 release snapshot (RUS)
 ;
 ;FIL is a part of RSK (RSS Script Kit)
 ;
@@ -1056,10 +1056,7 @@ vign-exit
       (Fix-CA 1 image layer (+ 1.5 ext) (- -1.5 ext) 1 0 0 0 0)
     )
   )
-  (if (= fk-gmic-def TRUE)
-    (plug-in-gmic 1 image layer 1 (string-append "-blur_radial " (number->string (/ ext 3)) ",0.5,0.5"))
-    (plug-in-mblur 1 image layer 2 (/ (+ (/ imh (/ 3500 ext)) (/ imw (/ 3500 ext))) 2) 0 (/ imw 2) (/ imh 2))
-  )
+  (plug-in-mblur 1 image layer 2 (/ (+ (/ imh (/ 3500 ext)) (/ imw (/ 3500 ext))) 2) 0 (/ imw 2) (/ imh 2))
 )
 
 ;fil-clr-sov
