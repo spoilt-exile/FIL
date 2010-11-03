@@ -1,4 +1,4 @@
-;FIL v1.7.1 beta1
+;FIL v1.7.1 beta2
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -87,7 +87,7 @@
 ;===============================================================================================================
 ;Procedures:			Status		Revision	Specs version
 ;==========================================CORE PROCEDURES======================================================
-;fil-check-api			stable		---		---
+;fil-gal-check			stable		---		---
 ;fil-spe-core			stable		---		1.7
 ;fil-stage-handle		stable		---		---
 ;fil-source-handle		stable		---		---
@@ -96,22 +96,22 @@
 ;fil-spe-batch			stable		---		---
 ;===========================================PRE-PROCESSES=======================================================
 ;fil-pre-xps			stable		r0		1.7
-;fil-pre-vignette		stable		r3		1.7
+;fil-pre-vignette		stable		r4		1.7
 ;fil-prefx-badblur		stable		r3		1.7
 ;==========================================COLOR PROCESSES======================================================
-;fil-clr-sov			old		r5		1.7
-;fil-clr-monochrome		stable		r3		1.7
+;fil-clr-sov			old		r6		1.7
+;fil-clr-monochrome		stable		r4		1.7
 ;fil-clr-lomo			stable		r3		1.7
-;fil-clr-duo			stable		r1		1.7
-;fil-clr-vintage		stable		r0		1.7
-;fil-clr-chrome			stable		r1		1.7
-;fil-clr-dram			stable		r0		1.7
+;fil-clr-duo			stable		r2		1.7
+;fil-clr-vintage		stable		r1		1.7
+;fil-clr-chrome			stable		r2		1.7
+;fil-clr-dram			stable		r1		1.7
 ;==========================================GRAIN PROCESSES======================================================
 ;fil-grn-simplegrain		old		r3		1.7
-;fil-grn-adv_grain		old		r4		1.7
-;fil-grnfx-sulfide		stable		r5		1.7
-;fil-grnfx-dram			stable		r1		1.7
-;=====================================FIL module classification=================================================
+;fil-grn-adv_grain		old		r5		1.7
+;fil-grnfx-sulfide		stable		r6		1.7
+;fil-grnfx-dram			stable		r2		1.7
+;=====================================FIL processes classification==============================================
 ; -pre - pre-process.
 ; -clr - color process.
 ; -grn - grain process.
@@ -138,7 +138,14 @@
 
 ;Core global variables
 
+;FIL version
 (define fil-version "ЛИПС 1.7.1")
+
+;GAL API required revision
+(define fk-gal-revision 1)
+
+;GAL oficial URL variable
+(define fk-gal-url "http://registry.gimp.org/node/24833")
 
 ;Core stage register with stage_id=1 (color stage);
 (define fk-clr-stage)
@@ -224,13 +231,13 @@
     ;Process "Sulfide; scratches" with proc_id=6
     (list "Сульфид: царапины"		TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE TRUE)))
 
-    ;Process "Dram Grain" with proc_id=7
+    ;Process "Dram Grain: normal" with proc_id=7
     (list "Драм-зерно: обычный"		TRUE	(quote (fil-grnfx-dram fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 30 TRUE)))
 
-    ;Process "Dram Grain" with proc_id=8
+    ;Process "Dram Grain: light" with proc_id=8
     (list "Драм-зерно: легкий"		TRUE	(quote (fil-grnfx-dram fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 25 FALSE)))
 
-    ;Process "Dram Grain" with proc_id=9
+    ;Process "Dram Grain: harsh" with proc_id=9
     (list "Драм-зерно: жесткий"		TRUE	(quote (fil-grnfx-dram fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 40 TRUE)))
   )
 )
@@ -281,13 +288,31 @@
   )
 )
 
-;fil-check-api
+;fil-gal-check
 ;CORE MODULE
 ;No arguments;
-(define (fil-check-api)
-  (if (defined? 'gimp-item-to-selection)
+(define (fil-gal-check)
+  (if (defined? 'gal-info)
+    (if (< gal-revision fk-gal-revision)
+      (begin
+	(gimp-message
+	  (string-append
+	  "Версия слоя абстракции GAL revision " (number->string gal-revision) " уже устарела.\n"
+	  "Обновите GAL используя адресс:\n"
+	  fk-gal-url
+	  )
+	)
+	(quit)
+      )
+    )
     (begin
-      (gimp-message (string-append fil-version " несовместим с GIMP 2.7/2.8"))
+      (gimp-message
+	(string-append
+	"GAL не найден.\n"
+	"Дальнейшая работа невозможна, установите GAL используя адресL:\n"
+	fk-gal-url
+	)
+      )
       (quit)
     )
   )
@@ -320,8 +345,8 @@
 	fm_misc_visible		;visible switch;
 	)
 
-  ;Item API presense
-  (fil-check-api)
+  ;GAL API presense
+  (fil-gal-check)
 
   ;Core start
   (if (= fk-batch-call-state FALSE)
@@ -479,10 +504,10 @@
 	(gimp-context-set-foreground fc_fore)
 	(gimp-context-set-background fc_back)
 	(set! fio_uni_layer (car (gimp-layer-new-from-drawable fio_uni_layer fm_image)))
-	(gimp-image-add-layer fm_image fio_uni_layer -1)
+	(gal-image-insert-layer fm_image fio_uni_layer -1)
 	(if (= fm_misc_logout TRUE)
-	  (gimp-drawable-set-name fio_uni_layer fs_res_str)
-	  (gimp-drawable-set-name fio_uni_layer fs_default_str)
+	  (gal-item-set-name fio_uni_layer fs_res_str)
+	  (gal-item-set-name fio_uni_layer fs_default_str)
 	)
 	(gimp-displays-flush)
   )
@@ -613,13 +638,13 @@ stage-handle
 		  )
 		)
 		(gimp-floating-sel-to-layer temp-layer)
-		(gimp-drawable-set-name temp-layer "Источник = Видимое")
+		(gal-item-set-name temp-layer "Источник = Видимое")
 		(set! exit-layer
 		  (car
 		    (gimp-layer-new-from-drawable temp-layer fk-sep-image)
 		  )
 		)
-		(gimp-image-add-layer fk-sep-image exit-layer -1)
+		(gal-image-insert-layer fk-sep-image exit-layer -1)
 		(gimp-image-remove-layer image temp-layer)
 	      )
 	      (begin
@@ -628,8 +653,8 @@ stage-handle
 		    (gimp-layer-new-from-drawable active fk-sep-image)
 		  )
 		)
-		(gimp-image-add-layer fk-sep-image exit-layer -1)
-		(gimp-drawable-set-name exit-layer "Источник = Копия")
+		(gal-image-insert-layer fk-sep-image exit-layer -1)
+		(gal-item-set-name exit-layer "Источник = Копия")
 	      )
 	    )
 	  )
@@ -643,13 +668,13 @@ stage-handle
 		  )
 		)
 		(gimp-floating-sel-to-layer exit-layer)
-		(gimp-drawable-set-name exit-layer "Источник = Видимое")
-		(gimp-image-raise-layer-to-top image exit-layer)
+		(gal-item-set-name exit-layer "Источник = Видимое")
+		(gal-image-raise-item-to-top image exit-layer)
 	      )
 	      (begin
 		(set! exit-layer (car (gimp-layer-copy active FALSE)))
-		(gimp-image-add-layer image exit-layer -1)
-		(gimp-drawable-set-name exit-layer "Источник = Копия")
+		(gal-image-insert-layer image exit-layer -1)
+		(gal-item-set-name exit-layer "Источник = Копия")
 	      )
 	    )
 	  )
@@ -723,16 +748,18 @@ exit
 	      (set! temp_id (+ temp_id 1))
 	      (set! temp_list (cdr temp_list))
 	    )
-	    (if (and (= dep_var FALSE) (= fk-batch-warn-lock FALSE))
+	    (if (= dep_var FALSE)
 	      (begin
-		(gimp-message 
-		  (string-append "Выбранное вами действие требует наличия расширения " dep_name ", которое не установленно на данный момент." 
-		  "\nВы можете самостоятельно установить необходимые расширения с помощью адресса: " dep_url "."
-		  "\n\nВыполнение продолжится без дополнительных эффектов."
-		  "\n\n" fil-version
+		(if (= fk-batch-warn-lock FALSE)
+		  (gimp-message 
+		    (string-append "Выбранное вами действие требует наличия расширения " dep_name ", которое не установленно на данный момент." 
+		    "\nВы можете самостоятельно установить необходимые расширения с помощью адресса: " dep_url "."
+		    "\n\nВыполнение продолжится без дополнительных эффектов."
+		    "\n\n" fil-version
+		    )
 		  )
 		)
-		(if (and (= fk-random-state FALSE) (= fk-batch-call-state TRUE))
+		(if (and (= fk-batch-random-state FALSE) (= fk-batch-call-state TRUE))
 		  (begin
 		    (gimp-image-delete fk-sep-image)
 		    (quit)
@@ -759,7 +786,7 @@ exit
   (list
   "Непочатов Станислав"
   "GPLv3"
-  "10 Сентябрь 2010"
+  "5 Ноября 2010"
   )
 )
 
@@ -830,8 +857,8 @@ exit
 	fbm_misc_random		;random mode switch;
 	)
 
-  ;Item API presense
-  (fil-check-api)
+  ;GAL API presense
+  (fil-gal-check)
 
   ;Input format definition
   (define input-ext)
@@ -879,6 +906,7 @@ exit
 		(res_layer)
 		)
 
+		;Progress bar setting up
 		(set! prog_counter (+ prog_counter 1))
 		(gimp-progress-set-text (string-append "Файл " (number->string prog_counter) " из " (number->string prog_length)))
 		(gimp-progress-update (/ prog_counter prog_length))
@@ -890,8 +918,8 @@ exit
 		    (gimp-edit-copy-visible img)
 		    (set! srclayer (car (gimp-edit-paste srclayer TRUE)))
 		    (gimp-floating-sel-to-layer srclayer)
-		    (gimp-drawable-set-name srclayer "Viz-src")
-		    (gimp-image-raise-layer-to-top img srclayer)
+		    (gal-item-set-name srclayer "Viz-src")
+		    (gal-image-raise-item-to-top img srclayer)
 		  )
 		  (set! srclayer (car (gimp-image-get-active-layer img)))
 		)
@@ -930,9 +958,6 @@ exit
 		  )
 		)
 
-		(gimp-progress-set-text (string-append "Файл " (number->string prog_counter) " из " (number->string prog_length)))
-		(gimp-progress-update (/ prog_counter prog_length))
-
 		;Final layers merging
 		(if (< fb_out_format 4)
 		  (set! res_layer (car (gimp-image-merge-visible-layers img 0)))
@@ -956,8 +981,6 @@ exit
 		;Image remocing
 		(gimp-image-delete img)
 	  )
-
-
 
 	  ;List offset and cycle's stage ending
 	  (set! filelist (cdr filelist))
@@ -1097,7 +1120,7 @@ exit
 	    )
 	  )
 	)
-	(gimp-image-add-layer image vign -1)
+	(gal-image-insert-layer image vign -1)
 	(gimp-drawable-fill vign 3)
 	(gimp-context-set-foreground '(0 0 0))
 	(gimp-ellipse-select image off_x off_y p_big p_big 0 TRUE TRUE 0)
@@ -1107,8 +1130,7 @@ exit
 	(gimp-selection-none image)
 	(gimp-context-set-foreground fore)
 	(set! norm_vign (car (gimp-layer-copy vign TRUE)))
-	(gimp-image-add-layer image norm_vign -1)
-	(gimp-drawable-set-name norm_vign "Нормальное виньетирование")
+	(gal-image-insert-layer image norm_vign -1)
 	(gimp-layer-set-mode vign 5)
 	(gimp-layer-set-mode norm_vign 3)
 	(gimp-layer-set-opacity vign vign_opc)
@@ -1166,9 +1188,8 @@ vign-exit
 	(red_mask)
 	)
 	(gimp-hue-saturation layer 0 5 0 -30)
-	(gimp-image-add-layer image first -1)
-	(gimp-image-add-layer image red -1)
-	(gimp-drawable-set-name first "Общий тон")
+	(gal-image-insert-layer image first -1)
+	(gal-image-insert-layer image red -1)
 	(set! red_mask
 	  (car
 	    (gimp-layer-create-mask layer 5)
@@ -1193,7 +1214,6 @@ vign-exit
 	  )
 	)
 	(gimp-hue-saturation layer 0 0 0 30)
-	(gimp-drawable-set-name layer "СОВ")
 	(set! sov-exit layer)
   )
 sov-exit
@@ -1217,10 +1237,10 @@ sov-exit
 	)
 
 	(set! paper (car (gimp-layer-new image imw imh 0 "Фотобумага" 100 0)))
-	(gimp-image-add-layer image paper -1)
+	(gal-image-insert-layer image paper -1)
 	(gimp-context-set-foreground '(224 213 184))
 	(gimp-drawable-fill paper 0)
-	(gimp-image-lower-layer image paper)
+	(gal-image-lower-item image paper)
 	(gimp-layer-set-mode layer 9)
 	(set! layer
 	  (car
@@ -1299,12 +1319,9 @@ monochrome-exit
 	(dark (car (gimp-layer-copy layer FALSE)))
 	(lightmask)
 	)
-	(gimp-image-add-layer image dark -1)
-	(gimp-image-add-layer image affect -1)
-	(gimp-image-add-layer image light -1)
-	(gimp-drawable-set-name dark "Темный тон")
-	(gimp-drawable-set-name light "Светлый тон")
-	(gimp-drawable-set-name affect "Аффект")
+	(gal-image-insert-layer image dark -1)
+	(gal-image-insert-layer image affect -1)
+	(gal-image-insert-layer image light -1)
 	(gimp-desaturate affect)
 	(gimp-levels affect 0 60 195 1.0 0 255)
 	(set! lightmask
@@ -1356,7 +1373,7 @@ duo-exit
 	;Bleach Bypass
 	(if(= Overlay TRUE)
 	  (begin
-	    (gimp-image-add-layer img overlay-layer -1)
+	    (gal-image-insert-layer img overlay-layer -1)
 	    (gimp-desaturate-full overlay-layer DESATURATE-LUMINOSITY)
 	    (plug-in-gauss TRUE img overlay-layer 1 1 TRUE)
 	    (plug-in-unsharp-mask 1 img overlay-layer 1 1 0)
@@ -1366,21 +1383,21 @@ duo-exit
 
 	;Yellow Layer
 	(set! yellow-layer (car (gimp-layer-new img imw imh RGB "Yellow" 100  MULTIPLY-MODE)))	
-	(gimp-image-add-layer img yellow-layer -1)
+	(gal-image-insert-layer img yellow-layer -1)
 	(gimp-context-set-background '(251 242 163))
 	(gimp-drawable-fill yellow-layer BACKGROUND-FILL)
 	(gimp-layer-set-opacity yellow-layer VarYellow)
 
 	;Magenta Layer
 	(set! magenta-layer (car (gimp-layer-new img imw imh RGB "Magenta" 100  SCREEN-MODE)))	
-	(gimp-image-add-layer img magenta-layer -1)
+	(gal-image-insert-layer img magenta-layer -1)
 	(gimp-context-set-background '(232 101 179))
 	(gimp-drawable-fill magenta-layer BACKGROUND-FILL)
 	(gimp-layer-set-opacity magenta-layer VarMagenta)
 
 	;Cyan Layer 
 	(set! cyan-layer (car (gimp-layer-new img imw imh RGB "Cyan" 100  SCREEN-MODE)))
-	(gimp-image-add-layer img cyan-layer -1)
+	(gal-image-insert-layer img cyan-layer -1)
 	(gimp-context-set-background '(9 73 233))
 	(gimp-drawable-fill cyan-layer BACKGROUND-FILL)
 	(gimp-layer-set-opacity cyan-layer VarCyan)
@@ -1441,41 +1458,36 @@ vint-exit
 	)
 
 	;set BW screen layer
-	(gimp-image-add-layer image bw-screen-layer -1)
-	(gimp-drawable-set-name bw-screen-layer "BW Screen")
+	(gal-image-insert-layer image bw-screen-layer -1)
 	(gimp-layer-set-mode bw-screen-layer SCREEN-MODE)
 	(gimp-layer-set-opacity bw-screen-layer 50)
 	(gimp-desaturate-full bw-screen-layer DESATURATE-LUMINOSITY)
 
 	;set BW merge layer
-	(gimp-image-add-layer image bw-merge-layer -1)
-	(gimp-drawable-set-name bw-merge-layer "BW Merge")
+	(gal-image-insert-layer image bw-merge-layer -1)
 	(gimp-layer-set-mode bw-merge-layer GRAIN-MERGE-MODE)
 	(gimp-layer-set-opacity bw-merge-layer bw-merge)
 	(gimp-desaturate-full bw-merge-layer DESATURATE-LUMINOSITY)
 	(gimp-curves-spline bw-merge-layer HISTOGRAM-VALUE 6 #(0 144 88 42 255 255))
 
 	;set contrast layers
-	(gimp-image-add-layer image contrast-layer1 -1)
-	(gimp-drawable-set-name contrast-layer1 "Contrast1")
+	(gal-image-insert-layer image contrast-layer1 -1)
 	(gimp-layer-set-mode contrast-layer1 OVERLAY-MODE)
 	(gimp-layer-set-opacity contrast-layer1 contrast)
 	(gimp-desaturate-full contrast-layer1 DESATURATE-LUMINOSITY)
 
-	(gimp-image-add-layer image contrast-layer2 -1)
-	(gimp-drawable-set-name contrast-layer2 "Contrast2")
+	(gal-image-insert-layer image contrast-layer2 -1)
 	(gimp-layer-set-mode contrast-layer2 OVERLAY-MODE)
 	(gimp-layer-set-opacity contrast-layer2 contrast)
 	(gimp-desaturate-full contrast-layer2 DESATURATE-LUMINOSITY)
     
 	;set dodge layer
-	(gimp-image-add-layer image dodge-layer -1)
-	(gimp-drawable-set-name dodge-layer "Dodge")
+	(gal-image-insert-layer image dodge-layer -1)
 	(gimp-layer-set-mode dodge-layer DODGE-MODE)
 	(gimp-layer-set-opacity dodge-layer 50)
     
 	;set merge layer
-	(gimp-image-add-layer image merge-layer -1)
+	(gal-image-insert-layer image merge-layer -1)
 	(gimp-selection-all image)
 	(gimp-context-set-foreground color1)
 	(gimp-edit-bucket-fill merge-layer FG-BUCKET-FILL NORMAL-MODE 100 0 FALSE 0 0)
@@ -1485,7 +1497,7 @@ vint-exit
 	(gimp-edit-blend merge-mask FG-BG-RGB-MODE NORMAL-MODE GRADIENT-LINEAR 100 0 REPEAT-NONE TRUE FALSE 1 0 TRUE 0 offset1 0 offset2)
     
 	;set screen layer
-	(gimp-image-add-layer image screen-layer -1)
+	(gal-image-insert-layer image screen-layer -1)
 	(gimp-selection-all image)
 	(gimp-context-set-foreground color1)
 	(gimp-edit-bucket-fill screen-layer FG-BUCKET-FILL NORMAL-MODE 100 0 FALSE 0 0)
@@ -1495,7 +1507,7 @@ vint-exit
 	(gimp-edit-blend screen-mask FG-BG-RGB-MODE NORMAL-MODE GRADIENT-LINEAR 100 0 REPEAT-NONE TRUE FALSE 1 0 TRUE 0 offset1 0 offset2)
 
 	;set multiply layer
-	(gimp-image-add-layer image multiply-layer -1)
+	(gal-image-insert-layer image multiply-layer -1)
 	(gimp-selection-all image)
 	(gimp-context-set-foreground color2)
 	(gimp-edit-bucket-fill multiply-layer FG-BUCKET-FILL NORMAL-MODE 100 0 FALSE 0 0)
@@ -1509,7 +1521,7 @@ vint-exit
 	  (begin
 
 	    ;yellow with mask
-	    (gimp-image-add-layer image retro-layer -1)
+	    (gal-image-insert-layer image retro-layer -1)
 	    (gimp-selection-all image)
 	    (gimp-context-set-foreground '(251 242 163))
 	    (gimp-edit-bucket-fill retro-layer FG-BUCKET-FILL NORMAL-MODE 100 0 FALSE 0 0)
@@ -1519,21 +1531,21 @@ vint-exit
 	    (gimp-floating-sel-anchor floatingsel)
            
 	    ;rose
-	    (gimp-image-add-layer image retro-layer2 -1)
+	    (gal-image-insert-layer image retro-layer2 -1)
 	    (gimp-selection-all image)
 	    (gimp-context-set-foreground '(232 101 179))
 	    (gimp-edit-bucket-fill retro-layer2 FG-BUCKET-FILL NORMAL-MODE 100 0 FALSE 0 0)
 
 	    ;gradient overlay
-	    (gimp-image-add-layer image gradient-layer -1)
+	    (gal-image-insert-layer image gradient-layer -1)
 	    (gimp-context-set-foreground '(255 255 255))
 	    (gimp-context-set-background '(0 0 0))
 	    (gimp-edit-blend gradient-layer FG-BG-RGB-MODE NORMAL-MODE GRADIENT-LINEAR 100 0 REPEAT-NONE FALSE FALSE 1 0 TRUE 0 offset1 0 offset2)
 
 	    ;deactivate orange layers
-	    (gimp-drawable-set-visible merge-layer FALSE)
-	    (gimp-drawable-set-visible screen-layer FALSE)
-	    (gimp-drawable-set-visible multiply-layer FALSE)
+	    (gal-item-set-visible merge-layer FALSE)
+	    (gal-item-set-visible screen-layer FALSE)
+	    (gal-item-set-visible multiply-layer FALSE)
 	  )
 	)
     
@@ -1578,11 +1590,11 @@ chrome-exit
 	(over_layer 0)
 	)
 	(set! over_layer (car (gimp-layer-copy layer FALSE)))
-	(gimp-image-add-layer image over_layer -1)
+	(gal-image-insert-layer image over_layer -1)
 	(plug-in-colorify 1 image over_layer input_color)
 	(gimp-layer-set-mode over_layer 5)
 	(set! color_layer (car (gimp-layer-copy over_layer FALSE)))
-	(gimp-image-add-layer image color_layer -1)
+	(gal-image-insert-layer image color_layer -1)
 	(gimp-layer-set-mode color_layer 13)
 	(gimp-layer-set-opacity color_layer 40)
 	(set! layer (car (gimp-image-merge-down image over_layer 0)))
@@ -1615,9 +1627,8 @@ dram-c-exit
 (define (fil-grn-adv_grain image clr_res imh imw foreground boost)
 (define adv-exit)
   (let* (
-	(name "Зерно+")
-	(grain_boost)
 	(rel_step (if (> imh imw) (/ imh 800) (/ imw 800)))
+	(grain_boost)
 	(grain)
 	(grain_mask)
 	)
@@ -1626,7 +1637,7 @@ dram-c-exit
 	    (gimp-layer-new image imw imh 0 "Зерно+" 100 0)
 	  )
 	)
-	(gimp-image-add-layer image grain -1)
+	(gal-image-insert-layer image grain -1)
 	(gimp-context-set-foreground '(128 128 128))
 	(gimp-drawable-fill grain 0)
 	(plug-in-hsv-noise 1 image grain 2 3 0 25)
@@ -1645,9 +1656,7 @@ dram-c-exit
 	(if (= boost TRUE)
 	  (begin
 	    (set! grain_boost (car (gimp-layer-copy grain FALSE)))
-	    (gimp-image-add-layer image grain_boost -1)
-	    (gimp-drawable-set-name grain_boost "усиление")
-	    (set! name (string-append name " усил."))
+	    (gal-image-insert-layer image grain_boost -1)
 	  )
 	)
 	(set! clr_res (car (gimp-image-merge-down image grain 0)))
@@ -1655,7 +1664,6 @@ dram-c-exit
 	  (set! clr_res (car (gimp-image-merge-down image grain_boost 0)))
 	)
 	(plug-in-gauss-iir2 1 image clr_res rel_step rel_step)
-	(gimp-drawable-set-name clr_res name)
 	(set! adv-exit clr_res)
   )
 adv-exit
@@ -1698,7 +1706,7 @@ adv-exit
 	    (gimp-layer-new image sc_imw sc_imh 0 "Слой масштаба" 100 0)
 	  )
 	)
-	(gimp-image-add-layer image scale_layer -1)
+	(gal-image-insert-layer image scale_layer -1)
 	(gimp-context-set-foreground '(128 128 128))
 	(gimp-drawable-fill scale_layer 0)
 	(plug-in-hsv-noise 1 image scale_layer 2 3 0 25)
@@ -1714,14 +1722,14 @@ adv-exit
 	    (gimp-layer-new image imw imh 0 "Нормальное зерно" 100 0)
 	  )
 	)
-	(gimp-image-add-layer image grain_layer -1)
+	(gal-image-insert-layer image grain_layer -1)
 	(gimp-layer-add-mask grain_layer grain_mask)
 	(gimp-curves-spline grain_mask 0 6 #(0 80 128 128 255 80))
 	(gimp-drawable-fill grain_layer 0)
 	(plug-in-hsv-noise 1 image grain_layer 2 3 0 25)
 	(gimp-brightness-contrast grain_layer 0 80)
 	(gimp-layer-set-mode grain_layer 5)
-	(gimp-layer-scale-full scale_layer imw imh FALSE 1)
+	(gimp-layer-scale scale_layer imw imh FALSE)
 	(gimp-brightness-contrast scale_layer 0 35)
 	(gimp-layer-set-opacity scale_layer 45)
 	(gimp-layer-resize-to-image-size scale_layer)
@@ -1734,9 +1742,9 @@ adv-exit
 		(gimp-layer-new image imw imh 0 "Гранж" 100 0)
 	      )
 	    )
-	    (gimp-image-add-layer image grunge_layer -1)
-	    (gimp-image-lower-layer image grunge_layer)
-	    (gimp-image-lower-layer image grunge_layer)
+	    (gal-image-insert-layer image grunge_layer -1)
+	    (gal-image-lower-item image grunge_layer)
+	    (gal-image-lower-item image grunge_layer)
 	    (plug-in-plasma 1 image grunge_layer 0 5.0)
 	    (gimp-desaturate grunge_layer)
 	    (gimp-layer-set-mode grunge_layer 5)
@@ -1813,7 +1821,7 @@ sulf-exit
 	  (begin
 	    (gimp-context-set-foreground '(128 128 128))
 	    (set! scratch_layer (car (gimp-layer-new image r_imd1 r_imd2 0 "Царапины" 100 0)))
-	    (gimp-image-add-layer image scratch_layer -1)
+	    (gal-image-insert-layer image scratch_layer -1)
 	    (if (= fk-gmic-def TRUE)
 	      (plug-in-gmic 1 image scratch_layer 1 "-stripes_y 2")
 	      (fil-dep_warn-handle 0)
@@ -1832,7 +1840,7 @@ sulf-exit
 	    (gimp-layer-new image sc_imd1 sc_imd2 0 "Слой масштаба" 100 0)
 	  )
 	)
-	(gimp-image-add-layer image scale_layer -1)
+	(gal-image-insert-layer image scale_layer -1)
 	(gimp-context-set-foreground '(128 128 128))
 	(gimp-drawable-fill scale_layer 0)
 	(plug-in-hsv-noise 1 image scale_layer 2 3 0 25)
@@ -1843,7 +1851,7 @@ sulf-exit
 	    (gimp-layer-create-mask layer 5)
 	  )
 	)
-	(gimp-layer-scale-full scale_layer r_imd1 r_imd2 FALSE 1)
+	(gimp-layer-scale scale_layer r_imd1 r_imd2 FALSE)
 	(gimp-brightness-contrast scale_layer 0 35)
 	(gimp-layer-set-opacity scale_layer 60)
 	(gimp-layer-resize-to-image-size scale_layer)
@@ -1860,10 +1868,10 @@ sulf-exit
 	(if (> sharp_opc 0)
 	  (begin
 	    (set! grey_layer (car (gimp-layer-copy layer FALSE)))
-	    (gimp-image-add-layer image grey_layer -1)
+	    (gal-image-insert-layer image grey_layer -1)
 	    (gimp-desaturate grey_layer)
 	    (set! blur_layer (car (gimp-layer-copy grey_layer FALSE)))
-	    (gimp-image-add-layer image blur_layer -1)
+	    (gal-image-insert-layer image blur_layer -1)
 	    (plug-in-gauss-rle 1 image blur_layer 10 1 1)
 	    (gimp-invert blur_layer)
 	    (gimp-layer-set-opacity blur_layer 50)
@@ -1873,7 +1881,7 @@ sulf-exit
 	    (gimp-layer-set-opacity grey_layer sharp_opc)
 	    (gimp-layer-set-mode grey_layer OVERLAY-MODE)
 	    (set! boost_layer (car (gimp-layer-copy grey_layer FALSE)))
-	    (gimp-image-add-layer image boost_layer -1)
+	    (gal-image-insert-layer image boost_layer -1)
 	    (set! layer (car (gimp-image-merge-down image grey_layer 0)))
 	    (set! layer (car (gimp-image-merge-down image boost_layer 0)))
 	  )
