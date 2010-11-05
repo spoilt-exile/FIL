@@ -1,4 +1,4 @@
-;FIL v1.7.1 beta2
+;FIL v1.7.1 RC1
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -16,6 +16,12 @@
 ;http://www.gnu.org/licenses/gpl-3.0.html
 ;
 ;FIL = ЛИПС (Лаборатория Имитации Пленочных Снимков);
+;
+;TO-DO (v1.7.2):
+; - vignette reviosion and optimization;
+; - total fil-clr-sov revision;
+; - fil-clr-dram revision;
+; - add "harsh time" mode into fil-grainfx-dram;
 ;
 ;Version history:
 ;===============================================================================================================
@@ -85,6 +91,15 @@
 ; - film scratches in "Sulfide" process added;
 ; - chromatic abberation in "Border Blur" pre-process added;
 ;===============================================================================================================
+;ver 1.7.1 (November 5 30 2010)
+; - GAL implementation;
+; - "B/W" and "Sepia" process was replaced by "Monochrome" color process;
+; - "SOV" and "Lomo" processes has been updated;
+; - "Simple Grain" was removed;
+; - fil-dep_warn-handle improvements;
+; - new process "Dram grain";
+; - batch version improvments;
+;===============================================================================================================
 ;Procedures:			Status		Revision	Specs version
 ;==========================================CORE PROCEDURES======================================================
 ;fil-gal-check			stable		---		---
@@ -99,16 +114,15 @@
 ;fil-pre-vignette		stable		r4		1.7
 ;fil-prefx-badblur		stable		r3		1.7
 ;==========================================COLOR PROCESSES======================================================
-;fil-clr-sov			old		r6		1.7
+;fil-clr-sov			stable		r7		1.7
 ;fil-clr-monochrome		stable		r4		1.7
-;fil-clr-lomo			stable		r3		1.7
+;fil-clr-lomo			stable		r4		1.7
 ;fil-clr-duo			stable		r2		1.7
 ;fil-clr-vintage		stable		r1		1.7
 ;fil-clr-chrome			stable		r2		1.7
 ;fil-clr-dram			stable		r1		1.7
 ;==========================================GRAIN PROCESSES======================================================
-;fil-grn-simplegrain		old		r3		1.7
-;fil-grn-adv_grain		old		r5		1.7
+;fil-grn-adv_grain		stable		r5		1.7
 ;fil-grnfx-sulfide		stable		r6		1.7
 ;fil-grnfx-dram			stable		r2		1.7
 ;=====================================FIL processes classification==============================================
@@ -139,7 +153,22 @@
 ;Core global variables
 
 ;FIL version
-(define fil-version "ЛИПС 1.7.1")
+(define fil-version "ЛИПС 1.7.1 RC1")
+
+;Core stage counter
+(define fk-stage-counter 0)
+
+;Separate image variable
+(define fk-sep-image)
+
+;Core state for batch mode
+(define fk-batch-call-state FALSE)
+
+;Core state for batch random mode
+(define fk-batch-random-state FALSE)
+
+;Core state for fil-dep_warn-handle lock
+(define fk-batch-warn-lock FALSE)
 
 ;GAL API required revision
 (define fk-gal-revision 1)
@@ -168,10 +197,10 @@
     (list "Ломо: XPro Зеленый" 		FALSE	(quote (fil-clr-lomo fk-sep-image fio_uni_layer 0)))
 
     ;Process "Lomo: XPro Autumn" with proc_id=5
-    (list "Ломо: Осень" 		FALSE	(quote (fil-clr-lomo fk-sep-image fio_uni_layer 1)))
+    (list "Ломо: желтоватый" 		FALSE	(quote (fil-clr-lomo fk-sep-image fio_uni_layer 1)))
 
     ;Process "Lomo: Old Red" with proc_id=6
-    (list "Ломо: красноватый" 		FALSE	(quote (fil-clr-lomo fk-sep-image fio_uni_layer 2)))
+    (list "Ломо: золотая осень" 	FALSE	(quote (fil-clr-lomo fk-sep-image fio_uni_layer 2)))
 
     ;Process "Duotone: normal" with proc_id=7
     (list "Двутон: обычный" 		TRUE	(quote (fil-clr-duo fk-sep-image fio_uni_layer 75 '(200 175 140) '(80 102 109))))
@@ -210,35 +239,32 @@
 (set! fk-grain-stage
   (list
 
-    ;Process "Simple grain" with proc_id=0
-    (list "Простая зернистость"		FALSE	(quote (fil-grn-simplegrain fk-sep-image fio_uni_layer)))
-
-    ;Process "Grain+: normal" with proc_id=1
+    ;Process "Grain+: normal" with proc_id=0
     (list "Зерно+: обычный" 		TRUE	(quote (fil-grn-adv_grain fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore FALSE)))
 
-    ;Process "Grain+: amplified" with proc_id=2
+    ;Process "Grain+: amplified" with proc_id=1
     (list "Зерно+: усиленный" 		TRUE	(quote (fil-grn-adv_grain fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore TRUE)))
 
-    ;Process "Sulfide: normal" with proc_id=3
+    ;Process "Sulfide: normal" with proc_id=2
     (list "Сульфид: обычный"		TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE FALSE)))
 
-    ;Process "Sulfide: large scale" with proc_id=4
+    ;Process "Sulfide: large scale" with proc_id=3
     (list "Сульфид: крупный"		TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 3.1 FALSE FALSE)))
 
-    ;Process "Sulfide: grunge" with proc_id=5
+    ;Process "Sulfide: grunge" with proc_id=4
     (list "Сульфид: гранж"		TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.7 TRUE FALSE)))
 
-    ;Process "Sulfide; scratches" with proc_id=6
-    (list "Сульфид: царапины"		TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE TRUE)))
+    ;Process "Sulfide; scratches" with proc_id=5
+    (list "(G'MIC) Сульфид: царапины"	TRUE	(quote (fil-grnfx-sulfide fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 2.5 FALSE TRUE)))
 
-    ;Process "Dram Grain: normal" with proc_id=7
-    (list "Драм-зерно: обычный"		TRUE	(quote (fil-grnfx-dram fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 30 TRUE)))
+    ;Process "Dram Grain: normal" with proc_id=6
+    (list "(G'MIC) Драм-зерно: обычный"	TRUE	(quote (fil-grnfx-dram fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 30 TRUE)))
 
-    ;Process "Dram Grain: light" with proc_id=8
+    ;Process "Dram Grain: light" with proc_id=7
     (list "Драм-зерно: легкий"		TRUE	(quote (fil-grnfx-dram fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 25 FALSE)))
 
-    ;Process "Dram Grain: harsh" with proc_id=9
-    (list "Драм-зерно: жесткий"		TRUE	(quote (fil-grnfx-dram fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 40 TRUE)))
+    ;Process "Dram Grain: harsh" with proc_id=8
+    (list "(G'MIC) Драм-зерно: жесткий"	TRUE	(quote (fil-grnfx-dram fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 40 TRUE)))
   )
 )
 
@@ -250,21 +276,6 @@
     fk-grain-stage		;Grain process stage;
   )
 )
-
-;Core stage counter
-(define fk-stage-counter 0)
-
-;Separate image variable
-(define fk-sep-image)
-
-;Core state for batch mode
-(define fk-batch-call-state FALSE)
-
-;Core state for batch random mode
-(define fk-batch-random-state FALSE)
-
-;Core state for fil-dep_warn-handle lock
-(define fk-batch-warn-lock FALSE)
 
 
 ;Plugin checking stage
@@ -298,7 +309,7 @@
 	(gimp-message
 	  (string-append
 	  "Версия слоя абстракции GAL revision " (number->string gal-revision) " уже устарела.\n"
-	  "Обновите GAL используя адресс:\n"
+	  "Обновите GAL используя адрес:\n"
 	  fk-gal-url
 	  )
 	)
@@ -309,7 +320,7 @@
       (gimp-message
 	(string-append
 	"GAL не найден.\n"
-	"Дальнейшая работа невозможна, установите GAL используя адресL:\n"
+	"Дальнейшая работа невозможна, установите GAL используя адрес:\n"
 	fk-gal-url
 	)
       )
@@ -344,6 +355,14 @@
 	fm_misc_logout		;option output swtitch;
 	fm_misc_visible		;visible switch;
 	)
+
+  ;Stage counter force reset
+  (set! fk-stage-counter 0)
+
+  ;Empty launck prevent
+  (if (and (= fm_clr_flag FALSE) (= fm_grain_flag FALSE) (= fm_pre_vign_flag FALSE) (= fm_pre_xps_control 0))
+    (quit)
+  )
 
   ;GAL API presense
   (fil-gal-check)
@@ -1214,6 +1233,7 @@ vign-exit
 	  )
 	)
 	(gimp-hue-saturation layer 0 0 0 30)
+	(gimp-curves-spline layer 0 6 #(0 0 105 125 255 255))
 	(set! sov-exit layer)
   )
 sov-exit
@@ -1293,10 +1313,10 @@ monochrome-exit
   )
   (if (= cid 2)
     (begin
-      (gimp-curves-spline layer 0 8 #(0 0 68 64 190 219 255 255))
-      (gimp-curves-spline layer 1 8 #(0 0 39 93 193 147 255 255))
-      (gimp-curves-spline layer 2 6 #(0 0 68 70 255 207))
-      (gimp-curves-spline layer 3 6 #(0 0 94 94 255 199))
+      (gimp-curves-spline layer 0 6 #(10 0 103 134 243 255))
+      (gimp-curves-spline layer 1 6 #(0 0 125 153 255 255))
+      (gimp-curves-spline layer 2 6 #(0 19 133 114 255 255))
+      (gimp-curves-spline layer 3 6 #(0 27 176 111 255 255))
     )
   )
 )
@@ -1382,14 +1402,14 @@ duo-exit
 	)
 
 	;Yellow Layer
-	(set! yellow-layer (car (gimp-layer-new img imw imh RGB "Yellow" 100  MULTIPLY-MODE)))	
+	(set! yellow-layer (car (gimp-layer-new img imw imh RGB "Yellow" 100  MULTIPLY-MODE)))
 	(gal-image-insert-layer img yellow-layer -1)
 	(gimp-context-set-background '(251 242 163))
 	(gimp-drawable-fill yellow-layer BACKGROUND-FILL)
 	(gimp-layer-set-opacity yellow-layer VarYellow)
 
 	;Magenta Layer
-	(set! magenta-layer (car (gimp-layer-new img imw imh RGB "Magenta" 100  SCREEN-MODE)))	
+	(set! magenta-layer (car (gimp-layer-new img imw imh RGB "Magenta" 100  SCREEN-MODE)))
 	(gal-image-insert-layer img magenta-layer -1)
 	(gimp-context-set-background '(232 101 179))
 	(gimp-drawable-fill magenta-layer BACKGROUND-FILL)
@@ -1602,15 +1622,6 @@ chrome-exit
 	(set! dram-c-exit layer)
   )
 dram-c-exit
-)
-
-;fil-grn-simplegrain
-;GRAIN PROCESS
-;Input variables:
-;IMAGE - processing image;
-;LAYER - processing layer;
-(define (fil-grn-simplegrain image layer)
-  (plug-in-hsv-noise 1 image layer 2 3 0 25)
 )
 
 ;fil-grn-adv_grain
