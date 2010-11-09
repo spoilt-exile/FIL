@@ -1,4 +1,4 @@
-;FIL v1.7.1 RC1
+;FIL v1.7.1 RC2
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -153,7 +153,7 @@
 ;Core global variables
 
 ;FIL version
-(define fil-version "ЛИПС 1.7.1 RC1")
+(define fil-version "ЛИПС 1.7.1 RC2")
 
 ;Core stage counter
 (define fk-stage-counter 0)
@@ -262,9 +262,6 @@
 
     ;Process "Dram Grain: light" with proc_id=7
     (list "Драм-зерно: легкий"		TRUE	(quote (fil-grnfx-dram fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 25 FALSE)))
-
-    ;Process "Dram Grain: harsh" with proc_id=8
-    (list "(G'MIC) Драм-зерно: жесткий"	TRUE	(quote (fil-grnfx-dram fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 40 TRUE)))
   )
 )
 
@@ -291,10 +288,10 @@
 (define fk-plugs-list
   (list
 
-    ;G'MIC info entry
+    ;G'MIC info entry with dep_id=0
     (list "G'MIC" "http://registry.gimp.org/node/13469" fk-gmic-def)
 
-    ;Fix-CA info entry
+    ;Fix-CA info entry with dep_id=1
     (list "Fix-CA" "http://registry.gimp.org/node/3726" fk-fixca-def)
   )
 )
@@ -772,8 +769,7 @@ exit
 		(if (= fk-batch-warn-lock FALSE)
 		  (gimp-message 
 		    (string-append "Выбранное вами действие требует наличия расширения " dep_name ", которое не установленно на данный момент." 
-		    "\nВы можете самостоятельно установить необходимые расширения с помощью адресса: " dep_url "."
-		    "\n\nВыполнение продолжится без дополнительных эффектов."
+		    "\nВы можете самостоятельно установить необходимые расширения воспользовавшись адресом:\n" dep_url
 		    "\n\n" fil-version
 		    )
 		  )
@@ -863,7 +859,7 @@ exit
 	fbm_grain_flag		;grain proceess execution switch;
 	fbm_grain_id		;grain process number;
 
-	;Управление пре-процессами
+	;Pre-processes control
 	fbm_pre_vign_flag	;vignette activation switch;;
 	fbm_pre_vign_rad	;vignette radius in percents;
 	fbm_pre_vign_soft	;vignette softness;
@@ -1878,6 +1874,8 @@ sulf-exit
 
 	(if (> sharp_opc 0)
 	  (begin
+	    ;Код был взят из скрипта highpass sharpening, автор - Andreas Schönfelder
+	    ;http://registry.gimp.org/node/21165
 	    (set! grey_layer (car (gimp-layer-copy layer FALSE)))
 	    (gal-image-insert-layer image grey_layer -1)
 	    (gimp-desaturate grey_layer)
