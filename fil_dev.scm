@@ -1,4 +1,4 @@
-;FIL v1.7.1 RC2
+;FIL v1.7.1 RC3
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -153,7 +153,7 @@
 ;Core global variables
 
 ;FIL version
-(define fil-version "ЛИПС 1.7.1 RC2")
+(define fil-version "ЛИПС 1.7.1 RC3")
 
 ;Core stage counter
 (define fk-stage-counter 0)
