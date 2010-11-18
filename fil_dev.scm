@@ -1,4 +1,4 @@
-;FIL v1.7.1 release snapshot (ENG)
+;FIL v1.7.1 (fix #1) release snapshot (ENG)
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -641,7 +641,7 @@ stage-handle
 	(temp-layer)
 	)
 
-	(if (= fk-batch-state FALSE)
+	(if (= fk-batch-call-state FALSE)
 	  (begin
 	    (set! fk-sep-image (car (gimp-image-duplicate image)))
 	    (gimp-image-undo-disable fk-sep-image)
@@ -783,8 +783,8 @@ exit
 		)
 	      )
 	      (gimp-message 
-		(string-append "There is an error with " dep_name "plugin integration".
-		".\nContact to the FIL developers to resolve this problem."
+		(string-append "There is an error with " dep_name "plugin integration."
+		"\nContact to the FIL developers to resolve this problem."
 		"\nExecution will proceed but without additional effects."
 		"\n\n" fil-version
 		)
@@ -923,7 +923,7 @@ exit
 
 		;Progress bar setting up
 		(set! prog_counter (+ prog_counter 1))
-		(gimp-progress-set-text (string-append "Файл " (number->string prog_counter) " из " (number->string prog_length)))
+		(gimp-progress-set-text (string-append "File " (number->string prog_counter) " of " (number->string prog_length)))
 		(gimp-progress-update (/ prog_counter prog_length))
 
 		;Preliminary layer merging
@@ -981,7 +981,7 @@ exit
 
 		;String proceessting and construction output path
 		(set! file (substring filename (string-length fb_dir_in) (- (string-length filename) 4 )))
-		(set! target_out (string-append fb_dir_out "/" file "_ЛИПС." out-ext))
+		(set! target_out (string-append fb_dir_out "/" file "_FIL." out-ext))
 
 		;File saving
 		(cond
