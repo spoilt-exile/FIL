@@ -1,4 +1,4 @@
-;FIL v1.7.1 RC3
+;FIL v1.7.2 beta1
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -19,9 +19,10 @@
 ;
 ;TO-DO (v1.7.2):
 ; - vignette reviosion and optimization;
-; - total fil-clr-sov revision;
+; - total fil-clr-sov revision;							(DONE)
 ; - fil-clr-dram revision;
-; - add "harsh time" mode into fil-grainfx-dram;
+; - add "harsh mode" mode into fil-grainfx-dram;
+; - delete "Vignette" process and implements it as "Lomo" process profile;
 ;
 ;Version history:
 ;===============================================================================================================
@@ -111,14 +112,16 @@
 ;fil-spe-batch			stable		---		---
 ;===========================================PRE-PROCESSES=======================================================
 ;fil-pre-xps			stable		r0		1.7
-;fil-pre-vignette		stable		r4		1.7
+;fil-pre-vignette		old		r4		1.7
+;fil-pre-vign2			alpha		---		1.7
 ;fil-prefx-badblur		stable		r3		1.7
 ;==========================================COLOR PROCESSES======================================================
-;fil-clr-sov			stable		r7		1.7
+;fil-clr-sov			disabled	r7		1.7
+;fil-clr-sov2			stable		r0		1.7
 ;fil-clr-monochrome		stable		r4		1.7
 ;fil-clr-lomo			stable		r4		1.7
 ;fil-clr-duo			stable		r2		1.7
-;fil-clr-vintage		stable		r1		1.7
+;fil-clr-vintage		old		r1		1.7
 ;fil-clr-chrome			stable		r2		1.7
 ;fil-clr-dram			stable		r1		1.7
 ;==========================================GRAIN PROCESSES======================================================
@@ -153,7 +156,7 @@
 ;Core global variables
 
 ;FIL version
-(define fil-version "ЛИПС 1.7.1 RC3")
+(define fil-version "ЛИПС 1.7.2 beta1")
 
 ;Core stage counter
 (define fk-stage-counter 0)
@@ -181,11 +184,17 @@
 (set! fk-clr-stage
   (list
     
-    ;Process "SOV: normal" with proc_id=0
-    (list "СОВ: обычный" 		TRUE	(quote (fil-clr-sov fk-sep-image fio_uni_layer fc_imh fc_imw 60 65)))
+    ;Process "SOV: normal" (DISABLED)
+    ;(list "СОВ: обычный" 		TRUE	(quote (fil-clr-sov fk-sep-image fio_uni_layer fc_imh fc_imw 60 65)))
 
-    ;Process "SOV: light" with proc_id=1
-    (list "СОВ: легкий" 		TRUE	(quote (fil-clr-sov fk-sep-image fio_uni_layer fc_imh fc_imw 30 35)))
+    ;Process "SOV: light" (DISABLED
+    ;(list "СОВ: легкий" 		TRUE	(quote (fil-clr-sov fk-sep-image fio_uni_layer fc_imh fc_imw 30 35)))
+
+    ;Process "SOV2: normal" with proc_id=0
+    (list "СОВ2: обычный" 		TRUE	(quote (fil-clr-sov2 fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore '(217 70 70) '(139 220 237))))
+
+    ;Process "SOV2: user colors"  with proc_id=1
+    (list "СОВ2: свои цвета" 		TRUE	(quote (fil-clr-sov2 fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore fc_fore fc_back)))
 
     ;Process "Monochrome (dev)" with proc_id=2
     (list "Монохром: ч/б"		TRUE	(quote (fil-clr-monochrome fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore 0)))
@@ -1184,7 +1193,7 @@ vign-exit
   (plug-in-mblur 1 image layer 2 (/ (+ (/ imh (/ 3500 ext)) (/ imw (/ 3500 ext))) 2) 0 (/ imw 2) (/ imh 2))
 )
 
-;fil-clr-sov
+;fil-clr-sov (DISABLED)
 ;COLOR PROCESS
 ;Input variables:
 ;IMAGE - processing image;
@@ -1202,6 +1211,7 @@ vign-exit
 	(red (car (gimp-layer-new image imw imh 0 "Тон маски" 100 0)))
 	(red_mask)
 	)
+
 	(gimp-hue-saturation layer 0 5 0 -30)
 	(gal-image-insert-layer image first -1)
 	(gal-image-insert-layer image red -1)
@@ -1233,6 +1243,62 @@ vign-exit
 	(set! sov-exit layer)
   )
 sov-exit
+)
+
+;fil-clr-sov2
+;COLOR PROCESS
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
+;INTEGER - image height value;
+;INTEGER - image width value;
+;COLOR - foreground color;
+;COLOR - input color for red layer;
+;COLOR - input color for first layer;
+;Returned variables:
+;LAYER - processed layer;
+(define (fil-clr-sov2 image layer imh imw fore input_red input_first)
+(define sov2-exit)
+  (let* (
+	(first (car (gimp-layer-new image imw imh 1 "First" 100 0)))
+	(red (car (gimp-layer-new image imw imh 1 "First" 100 0)))
+	(red_mask)
+	)
+
+	(gal-image-insert-layer image first -1)
+	(gal-image-insert-layer image red -1)
+	(gimp-context-set-foreground input_red)
+	(gimp-edit-fill red 0)
+	(gimp-context-set-foreground input_first)
+	(gimp-edit-fill first 0)
+	(set! red_mask
+	  (car
+	    (gimp-layer-create-mask layer 5)
+	  )
+	)
+	(gimp-layer-add-mask red red_mask)'
+	(gimp-levels red_mask 0 33 120 1.0 0 255)
+	(gimp-invert red_mask)
+	(gimp-layer-set-mode red 18)
+	(gimp-layer-set-opacity red 47)
+	(gimp-layer-set-mode first 13)
+	(gimp-layer-set-opacity first 42)
+	(set! layer
+	  (car
+	    (gimp-image-merge-down image first 0)
+	  )
+	)
+	(set! layer
+	  (car
+	    (gimp-image-merge-down image red 0)
+	  )
+	)
+	;(gimp-hue-saturation layer 0 0 0 30)
+	(gimp-curves-spline layer 0 6 #(0 0 105 125 255 255))
+	(gimp-context-set-foreground fore)
+	(set! sov2-exit layer)
+  )
+sov2-exit
 )
 
 ;fil-clr-monochrome
