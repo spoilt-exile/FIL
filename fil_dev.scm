@@ -1,4 +1,4 @@
-;FIL v1.7.2 beta1
+;FIL v1.8.0 alpha1
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -17,12 +17,12 @@
 ;
 ;FIL = ЛИПС (Лаборатория Имитации Пленочных Снимков);
 ;
-;TO-DO (v1.7.2):
+;TO-DO (v1.8.0):
+; - API modification;
 ; - vignette reviosion and optimization;
 ; - total fil-clr-sov revision;							(DONE)
-; - fil-clr-dram revision;
+; - fil-clr-dram revision
 ; - add "harsh mode" mode into fil-grainfx-dram;
-; - delete "Vignette" process and implements it as "Lomo" process profile;
 ;
 ;Version history:
 ;===============================================================================================================
@@ -156,7 +156,7 @@
 ;Core global variables
 
 ;FIL version
-(define fil-version "ЛИПС 1.7.2 beta1")
+(define fil-version "ЛИПС 1.8.0 alpha1")
 
 ;Core stage counter
 (define fk-stage-counter 0)
@@ -187,7 +187,7 @@
     ;Process "SOV: normal" (DISABLED)
     ;(list "СОВ: обычный" 		TRUE	(quote (fil-clr-sov fk-sep-image fio_uni_layer fc_imh fc_imw 60 65)))
 
-    ;Process "SOV: light" (DISABLED
+    ;Process "SOV: light" (DISABLED)
     ;(list "СОВ: легкий" 		TRUE	(quote (fil-clr-sov fk-sep-image fio_uni_layer fc_imh fc_imw 30 35)))
 
     ;Process "SOV2: normal" with proc_id=0
@@ -1173,6 +1173,23 @@ exit
 	(set! vign-exit src)
   )
 vign-exit
+)
+
+;fil-pre-vign2
+;PRE-PROCESS
+;Input variables:
+;IMAGE - processing image;
+;LAYER - processing layer;
+;INTEGER - image height value;
+;INTEGER - image width value;
+;INTEGER - vignette opacity value;
+;INTEGER - vignette softness value;
+;INTEGER - vignette radius value;
+;COLOR - foreground color;
+;Returned variables:
+;LAYER - processed layer;
+(define (fil-pre-vign2 image src imh imw vign_opc vign_rad vign_soft fore)
+
 )
 
 ;fil-prefx-badblur
