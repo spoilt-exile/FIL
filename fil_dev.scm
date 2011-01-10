@@ -1,4 +1,4 @@
-;FIL v1.8.0 alpha1
+;FIL v1.8.0 alpha3
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 ;FIL = ЛИПС (Лаборатория Имитации Пленочных Снимков);
 ;
 ;TO-DO (v1.8.0):
-; - API modification;
+; - API modification;								(DONE)
 ; - vignette reviosion and optimization;
 ; - total fil-clr-sov revision;							(DONE)
 ; - fil-clr-dram revision
@@ -156,7 +156,7 @@
 ;Core global variables
 
 ;FIL version
-(define fil-version "ЛИПС 1.8.0 alpha1")
+(define fil-version "ЛИПС 1.8.0 alpha3")
 
 ;Core stage counter
 (define fk-stage-counter 0)
@@ -365,17 +365,6 @@
   )
 )
 
-;Ready stage lists
-(define fk-r-clr-stage '())
-(define fk-r-grain-stage '())
-(define fk-r-stages-list
-  (list
-    FALSE
-    fk-r-clr-stage
-    fk-r-grain-stage
-  )
-)
-
 ;Default stage list
 (define fk-stages-list 
   (list 
@@ -562,8 +551,8 @@
 	    ;Process list initalization
 	    (set! fx_clr_list (fil-stage-handle FALSE fk-stage-counter fm_clr_id))
 	    (set! fs_clr_str (car fx_clr_list))
-	    (set! fio_return_flag (cadr fx_clr_list))
-	    (set! fx_clr_exp (caddr fx_clr_list))
+	    (set! fio_return_flag (caddr fx_clr_list))
+	    (set! fx_clr_exp (cadddr fx_clr_list))
 
 	    ;Color process execution
 	    (if (= fio_return_flag TRUE)
@@ -591,8 +580,8 @@
 	    ;Process list initalization
 	    (set! fx_grain_list (fil-stage-handle FALSE fk-stage-counter fm_grain_id))
 	    (set! fs_grain_str (car fx_grain_list))
-	    (set! fio_return_flag (cadr fx_grain_list))
-	    (set! fx_grain_exp (caddr fx_grain_list))
+	    (set! fio_return_flag (caddr fx_grain_list))
+	    (set! fx_grain_exp (cadddr fx_grain_list))
 
 	    ;Grain process execution
 	    (if (= fio_return_flag TRUE)
@@ -645,9 +634,8 @@
 (define stage-handle)
   (let* (
 	(stage_error (string-append "ЛИПС не нашел стадию с указанным номером:\nstage_id=" (number->string stage_id)))
-	(proc_error (string-append "ЛИПС не нашел процесс с указанным номером:\nstage_id=" (number->string stage_id) "\nr_proc_id=" (number->string proc_id)))
+	(proc_error (string-append "ЛИПС не нашел процесс с указанным номером:\nstage_id=" (number->string stage_id) "\nproc_id=" (number->string proc_id)))
 	(curr_error (string-append "Текущая стадия ЛИПС не является региструруемой:\nstage_id=" (number->string stage_id)))
-	(r_over_error (string-append "Текущая стадия ЛИПС не является пустой:\nstage_id=" (number->string stage_id)))
 	(stage_counter -1)
 	(proc_counter -1)
 	(current_stage_list)
@@ -658,12 +646,19 @@
 	(dep_entry)
 	(dep_flag)
 	(dep_var)
-	(r_stage_list '())
-	(r_current_stage_list)
-	(r_temp_list)
+	(r_current_namelist)
+	(r_temp_namelist fk-stages-list)
+	(r_proc_counter -1)
+	(r_proc_name)
+	(r_locker TRUE)
+	(proc_name)
+	(proc_flag)
+	(proc_code)
 	)
 	(set! temp_list fk-stages-list)
-	(set! r_temp_list fk-r-stages-list)
+	(if (= param FALSE)
+	  (set! r_temp_namelist fk-stages-namelist)
+	)
 
 	;Recieving list of current stage
 	(if (not (or (< stage_id 0) (> stage_id (- (length fk-stages-list) 1))))
@@ -672,6 +667,12 @@
 	      (set! current_stage_list (car temp_list))
 	      (set! stage_counter (+ stage_counter 1))
 	      (set! temp_list (cdr temp_list))
+	      (if (= param FALSE)
+		(begin
+		  (set! r_current_namelist (car r_temp_namelist))
+		  (set! r_temp_namelist (cdr r_temp_namelist))
+		)
+	      )
 	    )
 	  )
 	  (begin
@@ -701,40 +702,44 @@
 		  (set! dep_flag (car dep_entry))
 		  (set! dep_var (cadr dep_entry))
 		  (if (or (= dep_var TRUE) (and (= dep_var FALSE) (= dep_flag FALSE)))
-		    (begin
-		      (set! name_list (append name_list (list (car temp_entry))))
-		      (set! r_stage_list (append r_stage_list temp_entry))
-		    )
+		    (set! name_list (append name_list (list (car temp_entry))))
 		  )
 		)
-		(begin
-		  (set! name_list (append name_list (list (car temp_entry))))
-		  (set! r_stage_list (append r_stage_list temp_entry))
-		)
+		(set! name_list (append name_list (list (car temp_entry))))
 	      )
 	      (set! current_stage_list (cdr current_stage_list))
 	      (set! proc_id (+ proc_id 1))
 	    )
 	    (set! stage-handle name_list)
-	    (set! stage_counter -1)
-	    (while (< stage_counter stage_id)
-	      (begin
-		(set! r_current_stage_list (car r_temp_list))
-		(set! stage_counter (+ stage_counter 1))
-		(set! r_temp_list (cdr r_temp_list))
-	      )
-	    )
-	    (set! r_current_stage_list r_stage_list)
 	  )
 
 	  ;Recieving list with name of process and code block
 	  (begin
 	    (if (not (or (< proc_id 0) (> proc_id (- (length current_stage_list) 1))))
 	      (begin
-		(while (< proc_counter proc_id)
+		(while (< r_proc_counter proc_id)
+		  (set! r_proc_name (car r_current_namelist))
+		  (set! r_proc_counter (+ r_proc_counter 1))
+		  (set! r_current_namelist (cdr r_current_namelist))
+		)
+		(while (= r_locker TRUE)
 		  (set! proc_list (car current_stage_list))
-		  (set! proc_counter (+ proc_counter 1))
+		  (set! proc_name (car proc_list))
+		  (set! proc_flag (caddr proc_list))
+		  (set! proc_code (cadddr proc_list))
+		  (if (equal? proc_name r_proc_name)
+		    (begin
+		      (set! stage-handle (list proc_name proc_flag proc_code))
+		      (set! r_locker FALSE)
+		    )
+		  )
 		  (set! current_stage_list (cdr current_stage_list))
+		  (if (and (null? current_stage_list) (= r_locker TRUE))
+		    (begin
+		      (gimp-message proc_error)
+		      (quit)
+		    )
+		  )
 		)
 	      )
 	      (begin
@@ -747,6 +752,17 @@
 	)
   )
 stage-handle
+)
+
+;Ready stage lists
+(define fk-clr-namelist (fil-stage-handle TRUE 1 0))
+(define fk-grain-namelist (fil-stage-handle TRUE 2 0))
+(define fk-stages-namelist
+  (list
+    FALSE
+    fk-clr-namelist
+    fk-grain-namelist
+  )
 )
 
 ;fil-source-handle
@@ -932,9 +948,9 @@ exit
 (define fil-controls
   (list
   SF-TOGGLE	"Стадия цветокорректировки"	TRUE
-  SF-OPTION 	"Цветовой процесс" 		(fil-stage-handle TRUE 1 0)
+  SF-OPTION 	"Цветовой процесс" 		fk-clr-namelist
   SF-TOGGLE	"Стадия зернистости"		TRUE
-  SF-OPTION	"Процесс зернистости"		(fil-stage-handle TRUE 2 0)
+  SF-OPTION	"Процесс зернистости"		fk-grain-namelist
   SF-TOGGLE	"Включить виньетирование"	FALSE
   SF-ADJUSTMENT	"Радиус виньетирования (%)"	'(100 85 125 5 10 1 0)
   SF-ADJUSTMENT	"Мягкость виньетирования (%)"	'(33 20 45 2 5 1 0)
