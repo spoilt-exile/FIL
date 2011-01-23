@@ -1,4 +1,4 @@
-;FIL v1.8.0 alpha3
+;FIL v1.8.0 alpha4
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -19,9 +19,10 @@
 ;
 ;TO-DO (v1.8.0):
 ; - API modification;								(DONE)
+; - init procedure creation;							(DONE)
 ; - vignette reviosion and optimization;
 ; - total fil-clr-sov revision;							(DONE)
-; - fil-clr-dram revision
+; - fil-clr-dram revision;
 ; - add "harsh mode" mode into fil-grainfx-dram;
 ;
 ;Version history:
@@ -104,30 +105,29 @@
 ;Procedures:			Status		Revision	Specs version
 ;==========================================CORE PROCEDURES======================================================
 ;fil-gal-check			stable		---		---
-;fil-spe-core			stable		---		1.7
+;fil-spe-core			stable		---		1.8
 ;fil-stage-handle		stable		---		---
 ;fil-source-handle		stable		---		---
-;fil-plugs-handle		stable		---		---
-;fil-dep_warn-handle		old		---		---
+;fil-selftest-handle		stable		---		---
+;fil-init			stable		---		---
 ;fil-spe-batch			stable		---		---
 ;===========================================PRE-PROCESSES=======================================================
-;fil-pre-xps			stable		r0		1.7
-;fil-pre-vignette		old		r4		1.7
-;fil-pre-vign2			alpha		---		1.7
-;fil-prefx-badblur		stable		r3		1.7
+;fil-pre-xps			stable		r0		1.8
+;fil-pre-vignette		old		r4		1.8
+;fil-pre-vign2			alpha		---		1.8
+;fil-prefx-badblur		stable		r3		1.8
 ;==========================================COLOR PROCESSES======================================================
-;fil-clr-sov			disabled	r7		1.7
-;fil-clr-sov2			stable		r0		1.7
-;fil-clr-monochrome		stable		r4		1.7
-;fil-clr-lomo			stable		r4		1.7
-;fil-clr-duo			stable		r2		1.7
-;fil-clr-vintage		old		r1		1.7
-;fil-clr-chrome			stable		r2		1.7
-;fil-clr-dram			stable		r1		1.7
+;fil-clr-sov2			stable		r0		1.8
+;fil-clr-monochrome		stable		r4		1.8
+;fil-clr-lomo			stable		r4		1.8
+;fil-clr-duo			stable		r2		1.8
+;fil-clr-vintage		old		r1		1.8
+;fil-clr-chrome			stable		r2		1.8
+;fil-clr-dram			stable		r1		1.8
 ;==========================================GRAIN PROCESSES======================================================
-;fil-grn-adv_grain		stable		r5		1.7
-;fil-grnfx-sulfide		stable		r6		1.7
-;fil-grnfx-dram			stable		r2		1.7
+;fil-grn-adv_grain		stable		r5		1.8
+;fil-grnfx-sulfide		stable		r6		1.8
+;fil-grnfx-dram			stable		r2		1.8
 ;=====================================FIL processes classification==============================================
 ; -pre - pre-process.
 ; -clr - color process.
@@ -155,23 +155,19 @@
 
 ;Core global variables
 
-;FIL version
-(define fil-version "ЛИПС 1.8.0 alpha3")
+;FIL version variables
+(define fil-init-version "1.8.0 alpha4")
+(define fil-version (string-append "ЛИПС " fil-init-version))
+(define fil-dev-state TRUE)
 
 ;Core stage counter
 (define fk-stage-counter 0)
 
 ;Separate image variable
-(define fk-s-image)
+(define fk-sep-image)
 
 ;Core state for batch mode
 (define fk-batch-call-state FALSE)
-
-;Core state for batch random mode
-(define fk-batch-random-state FALSE)
-
-;Core state for fil-dep_warn-handle lock
-(define fk-batch-warn-lock FALSE)
 
 ;GAL API required revision
 (define fk-gal-revision 1)
@@ -179,6 +175,16 @@
 ;GAL oficial URL variable
 (define fk-gal-url "http://registry.gimp.org/node/24833")
 
+;Global variable for FIL debug mode
+(define fk-debug-mode
+  (if (= fil-dev-state TRUE)
+    TRUE
+    FALSE
+  )
+)
+
+;Global variable for FIL initialization mode
+(define fk-init-mode FALSE)
 
 
 ;Plugin checking stage
@@ -202,6 +208,8 @@
   )
 )
 
+(define fk-proc-banlist "")
+
 ;Core stage register with stage_id=1 (color stage);
 (define fk-clr-stage)
 (set! fk-clr-stage
@@ -210,103 +218,103 @@
     ;Process "SOV2: normal" with proc_id=0
     (list 
       "СОВ2: обычный"			FALSE				TRUE
-      (quote (fil-clr-sov2 fk-s-image fio_layer fc_imh fc_imw fc_fore '(217 70 70) '(139 220 237)))
+      (quote (fil-clr-sov2 fk-sep-image fio_layer fc_imh fc_imw fc_fore '(217 70 70) '(139 220 237)))
     )
 
     ;Process "SOV2: user colors"  with proc_id=1
     (list 
       "СОВ2: свои цвета"		FALSE				TRUE
-      (quote (fil-clr-sov2 fk-s-image fio_layer fc_imh fc_imw fc_fore fc_fore fc_back))
+      (quote (fil-clr-sov2 fk-sep-image fio_layer fc_imh fc_imw fc_fore fc_fore fc_back))
     )
 
     ;Process "Monochrome: b/w" with proc_id=2
     (list 
       "Монохром: ч/б"			FALSE				TRUE
-      (quote (fil-clr-monochrome fk-s-image fio_layer fc_imh fc_imw fc_fore 0))
+      (quote (fil-clr-monochrome fk-sep-image fio_layer fc_imh fc_imw fc_fore 0))
     )
 
     ;Process "Monochrome: sepia" with proc_id=3
     (list
       "Монохром: сепия"			FALSE				TRUE
-      (quote (fil-clr-monochrome fk-s-image fio_layer fc_imh fc_imw fc_fore 1))
+      (quote (fil-clr-monochrome fk-sep-image fio_layer fc_imh fc_imw fc_fore 1))
     )
 
     ;Process "Lomo: XPro Green" with proc_id=4
     (list
       "Ломо: XPro Зеленый"		FALSE				FALSE
-      (quote (fil-clr-lomo fk-s-image fio_layer 0))
+      (quote (fil-clr-lomo fk-sep-image fio_layer 0))
     )
 
     ;Process "Lomo: XPro Autumn" with proc_id=5
     (list
       "Ломо: желтоватый"		FALSE				FALSE
-      (quote (fil-clr-lomo fk-s-image fio_layer 1))
+      (quote (fil-clr-lomo fk-sep-image fio_layer 1))
     )
 
     ;Process "Lomo: Old Red" with proc_id=6
     (list
       "Ломо: золотая осень"		FALSE				FALSE
-      (quote (fil-clr-lomo fk-s-image fio_layer 2))
+      (quote (fil-clr-lomo fk-sep-image fio_layer 2))
     )
 
     ;Process "Duotone: normal" with proc_id=7
     (list
       "Двутон: обычный"			FALSE				TRUE
-      (quote (fil-clr-duo fk-s-image fio_layer 75 '(200 175 140) '(80 102 109)))
+      (quote (fil-clr-duo fk-sep-image fio_layer 75 '(200 175 140) '(80 102 109)))
     )
 
     ;Process "Duotone: soft" with proc_id=8
     (list 
       "Двутон: мягкий" 			FALSE				TRUE
-      (quote (fil-clr-duo fk-s-image fio_layer 30 '(200 175 140) '(80 102 109)))
+      (quote (fil-clr-duo fk-sep-image fio_layer 30 '(200 175 140) '(80 102 109)))
     )
 
     ;Process "Duotone: user colors" with proc_id=9
     (list 
       "Двутон: свои цвета" 		FALSE				TRUE
-      (quote (fil-clr-duo fk-s-image fio_layer 55 fc_fore fc_back))
+      (quote (fil-clr-duo fk-sep-image fio_layer 55 fc_fore fc_back))
     )
 
     ;Process "Vintage" with proc_id=10
     (list 
       "Винтаж"				FALSE				TRUE
-      (quote (fil-clr-vintage fk-s-image fio_layer fc_imh fc_imw 17 20 59 TRUE))
+      (quote (fil-clr-vintage fk-sep-image fio_layer fc_imh fc_imw 17 20 59 TRUE))
     )
 
     ;Process "Photochrom: normal" with proc_id=11
     (list 
       "Фотохром: обычный"		FALSE				TRUE
-      (quote (fil-clr-chrome fk-s-image fio_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 FALSE FALSE))
+      (quote (fil-clr-chrome fk-sep-image fio_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 FALSE FALSE))
     )
 
     ;Process "Photochrom: retro" with proc_id=12
     (list 
       "Фотохром: ретро"			FALSE				TRUE
-      (quote (fil-clr-chrome fk-s-image fio_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 FALSE TRUE))
+      (quote (fil-clr-chrome fk-sep-image fio_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 FALSE TRUE))
     )
 
     ;Process "Photochrom: bleach" with proc_id=13
     (list 
       "Фотохром: блеклый"		FALSE				TRUE
-      (quote (fil-clr-chrome fk-s-image fio_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 TRUE FALSE))
+      (quote (fil-clr-chrome fk-sep-image fio_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 TRUE FALSE))
     )
 
     ;Process "Photochrom: user colors" with proc_id=14
     (list 
       "Фотохром: свои цвета"		FALSE				TRUE
-      (quote (fil-clr-chrome fk-s-image fio_layer fc_imh fc_imw fc_fore fc_back 60 60 0 100 FALSE FALSE))
+      (quote (fil-clr-chrome fk-sep-image fio_layer fc_imh fc_imw fc_fore fc_back 60 60 0 100 FALSE FALSE))
     )
 
     ;Process "Dram: normal" with proc_id=15
     (list 
       "Драм: обычный"			FALSE				TRUE
-      (quote (fil-clr-dram fk-s-image fio_layer '(93 103 124)))
+      (quote (fil-clr-dram fk-sep-image fio_layer '(93 103 124)))
     )
 
     ;Process "Dram: user colors" with proc_id=16
     (list 
       "Драм: свои цвета"		FALSE				TRUE
-      (quote (fil-clr-dram fk-s-image fio_layer fc_fore))
+      (quote (fil-clr-dram fk-sep-image fio_layer fc_fore))
     )
   )
 )
@@ -319,48 +327,48 @@
     ;Process "Grain+: normal" with proc_id=0
     (list 
       "Зерно+: обычный" 		FALSE				TRUE
-      (quote (fil-grn-adv_grain fk-s-image fio_layer fc_imh fc_imw fc_fore FALSE))
+      (quote (fil-grn-adv_grain fk-sep-image fio_layer fc_imh fc_imw fc_fore FALSE))
     )
 
     ;Process "Grain+: amplified" with proc_id=1
     (list 
       "Зерно+: усиленный" 		FALSE				TRUE
-      (quote (fil-grn-adv_grain fk-s-image fio_layer fc_imh fc_imw fc_fore TRUE))
+      (quote (fil-grn-adv_grain fk-sep-image fio_layer fc_imh fc_imw fc_fore TRUE))
     )
 
     ;Process "Sulfide: normal" with proc_id=2
     (list 
       "Сульфид: обычный"		FALSE				TRUE
-      (quote (fil-grnfx-sulfide fk-s-image fio_layer fc_imh fc_imw fc_fore 2.5 FALSE FALSE))
+      (quote (fil-grnfx-sulfide fk-sep-image fio_layer fc_imh fc_imw fc_fore 2.5 FALSE FALSE))
     )
 
     ;Process "Sulfide: large scale" with proc_id=3
     (list 
       "Сульфид: крупный"		FALSE				TRUE
-      (quote (fil-grnfx-sulfide fk-s-image fio_layer fc_imh fc_imw fc_fore 3.1 FALSE FALSE))
+      (quote (fil-grnfx-sulfide fk-sep-image fio_layer fc_imh fc_imw fc_fore 3.1 FALSE FALSE))
     )
 
     ;Process "Sulfide: grunge" with proc_id=4
     (list 
       "Сульфид: гранж"			FALSE				TRUE
-      (quote (fil-grnfx-sulfide fk-s-image fio_layer fc_imh fc_imw fc_fore 2.7 TRUE FALSE))
+      (quote (fil-grnfx-sulfide fk-sep-image fio_layer fc_imh fc_imw fc_fore 2.7 TRUE FALSE))
     )
 
     ;Process "Sulfide; scratches" with proc_id=5
     (list 
       "Сульфид: царапины"		(list TRUE fk-gmic-def)		TRUE
-      (quote (fil-grnfx-sulfide fk-s-image fio_layer fc_imh fc_imw fc_fore 2.5 FALSE TRUE))
+      (quote (fil-grnfx-sulfide fk-sep-image fio_layer fc_imh fc_imw fc_fore 2.5 FALSE TRUE))
     )
 
     ;Process "Dram Grain: normal" with proc_id=6
     (list 
       "Драм-зерно: обычный"		(list TRUE fk-gmic-def)		TRUE
-      (quote (fil-grnfx-dram fk-s-image fio_layer fc_imh fc_imw fc_fore 30 TRUE)))
+      (quote (fil-grnfx-dram fk-sep-image fio_layer fc_imh fc_imw fc_fore 30 TRUE)))
 
     ;Process "Dram Grain: light" with proc_id=7
     (list 
       "Драм-зерно: легкий"		FALSE				TRUE	
-      (quote (fil-grnfx-dram fk-s-image fio_layer fc_imh fc_imw fc_fore 25 FALSE))
+      (quote (fil-grnfx-dram fk-sep-image fio_layer fc_imh fc_imw fc_fore 25 FALSE))
     )
   )
 )
@@ -448,7 +456,7 @@
       (begin
 	(gimp-context-push)
 	(gimp-image-undo-disable fm_image)
-	(set! fk-s-image fm_image)
+	(set! fk-sep-image fm_image)
       )
   )
 
@@ -507,7 +515,7 @@
 	    ;Exposure correction launching
 	    (if (not (= fm_pre_xps_control 0))
 	      (begin
-		(fil-pre-xps fk-s-image fio_layer fm_pre_xps_control)
+		(fil-pre-xps fk-sep-image fio_layer fm_pre_xps_control)
 		(set! fs_xps_str (string-append fs_xps_str (if (> fm_pre_xps_control 0) "+" "-") (number->string fm_pre_xps_control)))
 		(if (> (string-length fs_xps_str) 10)
 		  (set! fs_xps_str (substring fs_xps_str 0 11))
@@ -520,7 +528,7 @@
 	    (if (= fm_pre_vign_flag TRUE)
 	      (if (> fm_pre_vign_opc 0)
 		(begin
-		  (set! fio_layer (fil-pre-vignette fk-s-image fio_layer fc_imh fc_imw fm_pre_vign_opc fm_pre_vign_rad fm_pre_vign_soft fc_fore))
+		  (set! fio_layer (fil-pre-vignette fk-sep-image fio_layer fc_imh fc_imw fm_pre_vign_opc fm_pre_vign_rad fm_pre_vign_soft fc_fore))
 		  (set! fs_res_str (string-append fs_res_str fs_vign_str))
 		)
 	      )
@@ -529,7 +537,7 @@
 	    ;Blur launching
 	    (if (> fm_pre_blur_step 0)
 	      (begin
-		(fil-prefx-badblur fk-s-image fio_layer fc_imh fc_imw fm_pre_blur_step)
+		(fil-prefx-badblur fk-sep-image fio_layer fc_imh fc_imw fm_pre_blur_step)
 		(set! fs_res_str (string-append fs_res_str fs_blur_str (number->string (+ fm_pre_blur_step 1)) " "))
 	      )
 	    )
@@ -613,7 +621,7 @@
   (if (= fk-batch-call-state FALSE)
     (begin
       (gimp-image-undo-group-end fm_image)
-      (gimp-image-delete fk-s-image)
+      (gimp-image-delete fk-sep-image)
     )
     (begin
       (gimp-image-undo-enable fm_image)
@@ -632,10 +640,31 @@
 ;LIST - list with strings of the processes names / list with process name and with block of code;
 (define (fil-stage-handle param stage_id proc_id)
 (define stage-handle)
+
+(define (list_drop in_proc_id in_proc_name) 
+  (string-append 
+  ">>" in_proc_name "\n"
+  "Процесс ЛИПС поврежден или имеет неверный формат:\nstage_id=" 
+  (number->string stage_id) 
+  "\nproc_id=" 
+  (number->string in_proc_id)
+  "\nПроцесс будет аварийно отключен."
+  "\n\n" fil-version
+  )
+)
+(define (deplist_drop in_proc_id in_proc_name) 
+  (string-append 
+  ">>" in_proc_name "\n"
+  "Лист расширений процесса имеет неверный формат:\nstage_id="
+  (number->string stage_id) 
+  "\nproc_id=" 
+  (number->string in_proc_id)
+  "\nПроцесс будет аварийно отключен."
+  "\n\n" fil-version
+  )
+)
+
   (let* (
-	(stage_error (string-append "ЛИПС не нашел стадию с указанным номером:\nstage_id=" (number->string stage_id)))
-	(proc_error (string-append "ЛИПС не нашел процесс с указанным номером:\nstage_id=" (number->string stage_id) "\nproc_id=" (number->string proc_id)))
-	(curr_error (string-append "Текущая стадия ЛИПС не является региструруемой:\nstage_id=" (number->string stage_id)))
 	(stage_counter -1)
 	(proc_counter -1)
 	(current_stage_list)
@@ -654,6 +683,31 @@
 	(proc_name)
 	(proc_flag)
 	(proc_code)
+	(stage_error 
+	  (string-append 
+	  "ЛИПС не нашел стадию с указанным номером:\nstage_id=" 
+	  (number->string stage_id)
+	  "\nВыполнение ЛИПС прервано."
+	  "\n\n" fil-version
+	  )
+	)
+	(proc_error 
+	  (string-append 
+	  "ЛИПС не нашел процесс с указанным номером:\nstage_id=" 
+	  (number->string stage_id) 
+	  "\nproc_id=" (number->string proc_id)
+	  "\nВыполнение ЛИПС прервано."
+	  "\n\n" fil-version
+	  )
+	)
+	(curr_error 
+	  (string-append 
+	  "Текущая стадия ЛИПС не является регистрируемой:\nstage_id=" 
+	  (number->string stage_id)
+	  "\nВыполнение ЛИПС прервано."
+	  "\n\n" fil-version
+	  )
+	)
 	)
 	(set! temp_list fk-stages-list)
 	(if (= param FALSE)
@@ -697,15 +751,32 @@
 	    (while (not (null? current_stage_list))
 	      (set! temp_entry (car current_stage_list))
 	      (set! dep_entry (cadr temp_entry))
-	      (if (list? dep_entry)
-		(begin
-		  (set! dep_flag (car dep_entry))
-		  (set! dep_var (cadr dep_entry))
-		  (if (or (= dep_var TRUE) (and (= dep_var FALSE) (= dep_flag FALSE)))
-		    (set! name_list (append name_list (list (car temp_entry))))
+	      (if (= (length temp_entry) 4)
+		(if (list? dep_entry)
+		  (if (= (length dep_entry) 2)
+		    (begin
+		      (set! dep_flag (car dep_entry))
+		      (set! dep_var (cadr dep_entry))
+		      (if (or (= dep_var TRUE) (and (= dep_var FALSE) (= dep_flag FALSE)))
+			(set! name_list (append name_list (list (car temp_entry))))
+			(set! fk-proc-banlist (string-append fk-proc-banlist ">>" (car temp_entry) ": (отсутствие расширения);\n"))
+		      )
+		    )
+		    (begin
+		      (if (= fk-debug-mode TRUE)
+			(gimp-message (deplist_drop proc_id (car temp_entry)))
+		      )
+		      (set! fk-proc-banlist (string-append fk-proc-banlist ">>" (car temp_entry) ": (повреждение листа расширений);\n"))
+		    )
 		  )
+		  (set! name_list (append name_list (list (car temp_entry))))
 		)
-		(set! name_list (append name_list (list (car temp_entry))))
+		(begin
+		  (if (= fk-debug-mode TRUE)
+		    (gimp-message (list_drop proc_id (car temp_entry)))
+		  )
+		  (set! fk-proc-banlist (string-append fk-proc-banlist ">>" (car temp_entry) ": (поврежденный процесс);\n"))
+		)
 	      )
 	      (set! current_stage_list (cdr current_stage_list))
 	      (set! proc_id (+ proc_id 1))
@@ -782,8 +853,8 @@ stage-handle
 
 	(if (= fk-batch-call-state FALSE)
 	  (begin
-	    (set! fk-s-image (car (gimp-image-duplicate image)))
-	    (gimp-image-undo-disable fk-s-image)
+	    (set! fk-sep-image (car (gimp-image-duplicate image)))
+	    (gimp-image-undo-disable fk-sep-image)
 	    (if (= viz TRUE)
 	      (begin
 		(gimp-edit-copy-visible image)
@@ -796,19 +867,19 @@ stage-handle
 		(gal-item-set-name temp-layer "Источник = Видимое")
 		(set! exit-layer
 		  (car
-		    (gimp-layer-new-from-drawable temp-layer fk-s-image)
+		    (gimp-layer-new-from-drawable temp-layer fk-sep-image)
 		  )
 		)
-		(gal-image-insert-layer fk-s-image exit-layer -1)
+		(gal-image-insert-layer fk-sep-image exit-layer -1)
 		(gimp-image-remove-layer image temp-layer)
 	      )
 	      (begin
 		(set! exit-layer 
 		  (car 
-		    (gimp-layer-new-from-drawable active fk-s-image)
+		    (gimp-layer-new-from-drawable active fk-sep-image)
 		  )
 		)
-		(gal-image-insert-layer fk-s-image exit-layer -1)
+		(gal-image-insert-layer fk-sep-image exit-layer -1)
 		(gal-item-set-name exit-layer "Источник = Копия")
 	      )
 	    )
@@ -839,10 +910,10 @@ stage-handle
 exit
 )
 
-;fil-plugs-handle
+;fil-selftest-handle
 ;CORE MODULE
 ;Hasn't arguments
-(define (fil-plugs-handle)
+(define (fil-selftest-handle)
   (let* (
 	(finded " найден.")
 	(not_finded " не найден.\nПожалуйста установите плагин используя ссылку:")
@@ -853,7 +924,8 @@ exit
 	(plug_name)
 	(plug_url)
 	(plug_var)
-	(plug_message "")
+	(out_message "Внутренняя диагностика ЛИПС:\n\nПроверка наличия необходимиых расширений:\n")
+	(ban_message "")
 	)
 	(set! temp_list fk-plugs-list)
 	(while (not (null? temp_list))
@@ -862,78 +934,118 @@ exit
 	  (set! plug_url (cadr temp_entry))
 	  (set! plug_var (caddr temp_entry))
 	  (if (= plug_var TRUE)
-	    (set! plug_message (string-append plug_message plug_name space finded))
+	    (set! out_message (string-append out_message plug_name space finded))
 	    (begin
-	      (set! plug_message (string-append plug_message plug_name space not_finded line plug_url))
+	      (set! out_message (string-append out_message plug_name space not_finded line plug_url))
 	    )
 	  )
-	  (set! plug_message (string-append plug_message line))
+	  (set! out_message (string-append out_message line))
 	  (set! temp_list (cdr temp_list))
 	)
-	(set! plug_message (string-append plug_message line fil-version))
-	(gimp-message plug_message)
+	(if (= (string-length fk-proc-banlist) 0)
+	  (set! ban_message
+	    (string-append
+	      "\nПроверка списка процессов ЛИПС:\n"
+	      "Проверка успешно пройдена, все процессы активны.\n"
+	    )
+	  )
+	  (set! ban_message
+	    (string-append
+	      "\nПроверка списка процессов ЛИПС:\n"
+	      fk-proc-banlist
+	      "Для более подробной информации "
+	      "прочтите документацию к отключенным "
+	      "процессам.\n"
+	    )
+	  )
+	)
+	(set! out_message (string-append out_message ban_message line fil-version))
+	(if (= fk-init-mode FALSE)
+	  (gimp-message out_message)
+	  out_message
+	)
   )
 )
 
-;fil-dep_warn-handle (TO DELETE)
+;fil-init
 ;CORE MODULE
-;Input variables:
-;INTEGER - id of missing plugin;
-(define (fil-dep_warn-handle dep_id)
+;Hasn't arguments
+(define (fil-init)
   (let* (
-	(temp_list fk-plugs-list)
-	(temp_entry)
-	(temp_id 0)
-	(dep_name)
-	(dep_url)
-	(dep_var)
+	(parasite_glist (gimp-parasite-list))
+	(parasite_count (car parasite_glist))
+	(parasite_templist (cadr parasite_glist))
+	(current_parasite_name)
+	(current_parasite)
+	(parasite_name)
+	(parasite_value)
+	(init_parasite FALSE)
+	(init_flag FALSE)
+	(init_message "")
 	)
 
-	(if (< dep_id (length fk-plugs-list))
-	  (begin
-	    (while (< temp_id (length fk-plugs-list))
-	      (if (= temp_id dep_id)
-		(begin
-		  (set! temp_entry (car temp_list))
-		  (set! dep_name (car temp_entry))
-		  (set! dep_url (cadr temp_entry))
-		  (set! dep_var (caddr temp_entry))
-		)
-	      )
-	      (set! temp_id (+ temp_id 1))
-	      (set! temp_list (cdr temp_list))
+	(print "Обработка листа паразитов...")
+
+	(if (> parasite_count 0)
+	  (while (not (or (= init_parasite TRUE) (null? parasite_templist)))
+	    (set! current_parasite_name (car parasite_templist))
+	    (if (equal? current_parasite_name "fil-init")
+	      (set! init_parasite TRUE)
+	      (set! parasite_templist (cdr parasite_templist))
 	    )
-	    (if (= dep_var FALSE)
+	  )
+	)
+
+	(print "Инициализация диалога")
+
+	(if (= init_parasite TRUE)
+	  (begin
+	    (set! current_parasite (car (gimp-parasite-find current_parasite_name)))
+	    (set! parasite_value (caddr current_parasite))
+	    (if (not (equal? parasite_value fil-init-version))
 	      (begin
-		(if (= fk-batch-warn-lock FALSE)
-		  (gimp-message 
-		    (string-append "Выбранное вами действие требует наличия расширения " dep_name ", которое не установленно на данный момент." 
-		    "\nВы можете самостоятельно установить необходимые расширения воспользовавшись адресом:\n" dep_url
-		    "\n\n" fil-version
-		    )
+		(set! init_flag TRUE)
+		(set! init_message 
+		  (string-append 
+		  init_message
+		  "Инициализация ЛИПС...\n\n"
+		  "Внимание! Вы сменили версию ЛИПС:\n"
+		  parasite_value " => " fil-init-version
+		  (if (= fil-dev-state TRUE)
+		    "\n\nПримечание!\nДанная версия находится в разработке и может оказатся нестабильной."
 		  )
-		)
-		(if (and (= fk-batch-random-state FALSE) (= fk-batch-call-state TRUE))
-		  (begin
-		    (gimp-image-delete fk-s-image)
-		    (quit)
+		  "\n\n"
 		  )
-		  (set! fk-batch-warn-lock TRUE)
-		)
-	      )
-	      (gimp-message 
-		(string-append "Выявлена неправильная работа интеграции с бинарным расширением " dep_name
-		".\nСвяжитесь с разработчиком ЛИПС для устранения ошибки."
-		"\nВыполнение продолжится без дополнительных эффектов."
-		"\n\n" fil-version
 		)
 	      )
 	    )
 	  )
-	  FALSE
+	  (begin
+	    (set! init_flag TRUE)
+	    (set! init_message (string-append init_message "Инициализация ЛИПС...\n\n"))
+	  )
 	)
+
+	(print "Запуск инициализаации...")
+
+	(if (= init_flag TRUE)
+	  (begin
+	    (gimp-parasite-attach (list "fil-init" 1 fil-init-version))
+	    (set! fk-init-mode TRUE)
+	    (set! init_message (string-append init_message (fil-selftest-handle)))
+	    (set! fk-init-mode FALSE)
+	    (gimp-message-set-handler 0)
+	    (gimp-message init_message)
+	  )
+	)
+
   )
 )
+
+;FIL initialization
+(fil-init)
+
+
 
 ;FIL registation part resposible for author rights
 (define fil-credits
@@ -1045,8 +1157,6 @@ exit
 
 	;Going into batch state
 	(set! fk-batch-call-state TRUE)
-	(set! fk-batch-random-state (if (= fbm_misc_random TRUE) TRUE FALSE))
-	(set! fk-batch-warn-lock FALSE)
 
 	;Cycle begin
 	(while (not (null? filelist))
@@ -1180,12 +1290,12 @@ exit
   )
 )
 
-;fil-plugs-handle registration procedure
+;fil-selftest-handle registration procedure
 (apply script-fu-register
   (append
     (list
-    "fil-plugs-handle"
-    _"<Image>/Filters/RSS/ЛИПС _Проверка плагинов"
+    "fil-selftest-handle"
+    _"<Image>/Filters/RSS/ЛИПС _Диагностика"
     "Проверка целостности интеграции ЛИПС с бинарными плагинами"
     )
     fil-credits
@@ -1863,10 +1973,7 @@ adv-exit
 	)
 
 	(if (= scratch_switch TRUE)
-	  (if (= fk-gmic-def TRUE)
-	    (plug-in-gmic 1 image layer 1 "-apply_channels \"-stripes_y 2\",7")
-	    (fil-dep_warn-handle 0)
-	  )
+	  (plug-in-gmic 1 image layer 1 "-apply_channels \"-stripes_y 2\",7")
 	)
 
 	(set! scale_layer
@@ -1990,10 +2097,7 @@ sulf-exit
 	    (gimp-context-set-foreground '(128 128 128))
 	    (set! scratch_layer (car (gimp-layer-new image r_imd1 r_imd2 0 "Царапины" 100 0)))
 	    (gal-image-insert-layer image scratch_layer -1)
-	    (if (= fk-gmic-def TRUE)
-	      (plug-in-gmic 1 image scratch_layer 1 "-stripes_y 2")
-	      (fil-dep_warn-handle 0)
-	    )
+	    (plug-in-gmic 1 image scratch_layer 1 "-stripes_y 2")
 	    (set! scratch_mask (car (gimp-layer-create-mask scratch_layer 1)))
 	    (gimp-layer-add-mask scratch_layer scratch_mask)
 	    (plug-in-plasma 1 image scratch_mask 0 4.5)
