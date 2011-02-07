@@ -1,4 +1,4 @@
-;FIL v1.8.0 alpha4
+;FIL v1.8.0 alpha5
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -20,10 +20,12 @@
 ;TO-DO (v1.8.0):
 ; - API modification;								(DONE)
 ; - init procedure creation;							(DONE)
-; - vignette reviosion and optimization;
+; - vignette reviosion and optimization;					(DONE)
 ; - total fil-clr-sov revision;							(DONE)
-; - fil-clr-dram revision;
-; - add "harsh mode" mode into fil-grainfx-dram;
+; - fil-clr-dram revision;							(DROPED)
+; - add "harsh mode" mode into fil-grainfx-dram;				(IN PROGRESS)
+; - remove GAL;									(HOLD)
+; - batch core revision;
 ;
 ;Version history:
 ;===============================================================================================================
@@ -113,15 +115,14 @@
 ;fil-spe-batch			stable		---		---
 ;===========================================PRE-PROCESSES=======================================================
 ;fil-pre-xps			stable		r0		1.8
-;fil-pre-vignette		old		r4		1.8
-;fil-pre-vign2			alpha		---		1.8
+;fil-pre-vignette		stable		r5		1.8
 ;fil-prefx-badblur		stable		r3		1.8
 ;==========================================COLOR PROCESSES======================================================
 ;fil-clr-sov2			stable		r0		1.8
 ;fil-clr-monochrome		stable		r4		1.8
 ;fil-clr-lomo			stable		r4		1.8
 ;fil-clr-duo			stable		r2		1.8
-;fil-clr-vintage		old		r1		1.8
+;fil-clr-vintage		stable		r1		1.8
 ;fil-clr-chrome			stable		r2		1.8
 ;fil-clr-dram			stable		r1		1.8
 ;==========================================GRAIN PROCESSES======================================================
@@ -156,7 +157,7 @@
 ;Core global variables
 
 ;FIL version variables
-(define fil-init-version "1.8.0 alpha4")
+(define fil-init-version "1.8.0 alpha5")
 (define fil-version (string-append "ЛИПС " fil-init-version))
 (define fil-dev-state TRUE)
 
@@ -174,14 +175,6 @@
 
 ;GAL oficial URL variable
 (define fk-gal-url "http://registry.gimp.org/node/24833")
-
-;Global variable for FIL debug mode
-(define fk-debug-mode
-  (if (= fil-dev-state TRUE)
-    TRUE
-    FALSE
-  )
-)
 
 ;Global variable for FIL initialization mode
 (define fk-init-mode FALSE)
@@ -363,12 +356,18 @@
     ;Process "Dram Grain: normal" with proc_id=6
     (list 
       "Драм-зерно: обычный"		(list TRUE fk-gmic-def)		TRUE
-      (quote (fil-grnfx-dram fk-sep-image fio_layer fc_imh fc_imw fc_fore 30 TRUE)))
+      (quote (fil-grnfx-dram fk-sep-image fio_layer fc_imh fc_imw fc_fore 30 TRUE FALSE)))
 
     ;Process "Dram Grain: light" with proc_id=7
     (list 
       "Драм-зерно: легкий"		FALSE				TRUE	
-      (quote (fil-grnfx-dram fk-sep-image fio_layer fc_imh fc_imw fc_fore 25 FALSE))
+      (quote (fil-grnfx-dram fk-sep-image fio_layer fc_imh fc_imw fc_fore 25 FALSE FALSE))
+    )
+
+    ;Process "Dram Grain: harsh" with proc_id=8
+    (list 
+      "Драм-зерно: жесткий"		(list TRUE fk-gmic-def)		TRUE	
+      (quote (fil-grnfx-dram fk-sep-image fio_layer fc_imh fc_imw fc_fore 25 TRUE TRUE))
     )
   )
 )
@@ -763,7 +762,7 @@
 		      )
 		    )
 		    (begin
-		      (if (= fk-debug-mode TRUE)
+		      (if (= fil-dev-state TRUE)
 			(gimp-message (deplist_drop proc_id (car temp_entry)))
 		      )
 		      (set! fk-proc-banlist (string-append fk-proc-banlist ">>" (car temp_entry) ": (повреждение листа расширений);\n"))
@@ -772,7 +771,7 @@
 		  (set! name_list (append name_list (list (car temp_entry))))
 		)
 		(begin
-		  (if (= fk-debug-mode TRUE)
+		  (if (= fil-dev-state TRUE)
 		    (gimp-message (list_drop proc_id (car temp_entry)))
 		  )
 		  (set! fk-proc-banlist (string-append fk-proc-banlist ">>" (car temp_entry) ": (поврежденный процесс);\n"))
@@ -984,8 +983,6 @@ exit
 	(init_message "")
 	)
 
-	(print "Обработка листа паразитов...")
-
 	(if (> parasite_count 0)
 	  (while (not (or (= init_parasite TRUE) (null? parasite_templist)))
 	    (set! current_parasite_name (car parasite_templist))
@@ -995,8 +992,6 @@ exit
 	    )
 	  )
 	)
-
-	(print "Инициализация диалога")
 
 	(if (= init_parasite TRUE)
 	  (begin
@@ -1025,8 +1020,6 @@ exit
 	    (set! init_message (string-append init_message "Инициализация ЛИПС...\n\n"))
 	  )
 	)
-
-	(print "Запуск инициализаации...")
 
 	(if (= init_flag TRUE)
 	  (begin
@@ -1387,9 +1380,8 @@ exit
 	(gal-image-insert-layer image vign -1)
 	(gimp-drawable-fill vign 3)
 	(gimp-context-set-foreground '(0 0 0))
-	(gimp-ellipse-select image off_x off_y p_big p_big 0 TRUE TRUE 0)
+	(gimp-ellipse-select image off_x off_y p_big p_big 0 TRUE TRUE p_soft)
 	(gimp-selection-invert image)
-	(gimp-selection-feather image p_soft)
 	(gimp-edit-bucket-fill vign 0 0 100 0 FALSE 0 0)
 	(gimp-selection-none image)
 	(gimp-context-set-foreground fore)
@@ -1413,23 +1405,6 @@ exit
 	(set! vign-exit src)
   )
 vign-exit
-)
-
-;fil-pre-vign2
-;PRE-PROCESS
-;Input variables:
-;IMAGE - processing image;
-;LAYER - processing layer;
-;INTEGER - image height value;
-;INTEGER - image width value;
-;INTEGER - vignette opacity value;
-;INTEGER - vignette softness value;
-;INTEGER - vignette radius value;
-;COLOR - foreground color;
-;Returned variables:
-;LAYER - processed layer;
-(define (fil-pre-vign2 image src imh imw vign_opc vign_rad vign_soft fore)
-
 )
 
 ;fil-prefx-badblur
@@ -2060,7 +2035,7 @@ sulf-exit
 ;BOOLEAN - scratch-mode switch;
 ;Returned variables:
 ;LAYER - processed layer;
-(define (fil-grnfx-dram image layer imh imw foreground sharp_opc scratch_switch)
+(define (fil-grnfx-dram image layer imh imw foreground sharp_opc scratch_switch harsh_mode)
 (define dram-g-exit)
 
   (let* (
@@ -2079,6 +2054,7 @@ sulf-exit
 	(grey_layer)
 	(boost_layer)
 	(boost (/ (* 128 (+ 100 0)) 200))
+	(harsh_layer)
 	)
 
 	(if (< imh imw)
@@ -2158,6 +2134,13 @@ sulf-exit
 	    (gal-image-insert-layer image boost_layer -1)
 	    (set! layer (car (gimp-image-merge-down image grey_layer 0)))
 	    (set! layer (car (gimp-image-merge-down image boost_layer 0)))
+	  )
+	)
+
+	(if (= harsh_mode TRUE)
+	  (begin
+	    (set! harsh_layer (car (gimp-layer-new image r_imd1 r_imd2 0 "Рамка" 100 0)))
+	    (gal-image-insert-layer image harsh_layer -1)
 	  )
 	)
 
