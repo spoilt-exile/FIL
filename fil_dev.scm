@@ -1,4 +1,4 @@
-;FIL v1.7.1 (fix #1) release snapshot (ENG)
+;FIL v1.7.1 (fix #2) release snapshot (ENG)
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -1010,7 +1010,7 @@ exit
 (apply script-fu-register
   (append
     (list
-    "fil-ng-batch"
+    "fil-spe-batch"
     _"<Image>/Filters/RSS/FIL Ba_tch"
     "FIL batch mode"
     )
