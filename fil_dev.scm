@@ -1,4 +1,4 @@
-;FIL v1.7.2 release snapshot (RUS)
+;FIL v1.7.2 (Fix #1) release snapshot (RUS)
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -94,7 +94,7 @@
 ; - new process "Dram grain";
 ; - batch version improvments;
 ;===============================================================================================================
-;ver. 1.7.2 (May 25 2012)
+;ver. 1.7.2 (June 17 2012)
 ; - new color process "SOV2";
 ; - new pre-precess "Monocle";
 ; - GIMP 2.8 native release;
@@ -174,14 +174,14 @@
 (set! fk-clr-stage
   (list
     
-    ;Process "SOV: normal" with proc_id=0
+    ;Process "SOV2: normal" with proc_id=0
     (list
       "СОВ2: обычный"
       TRUE
       (quote (fil-clr-sov2 fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore '(217 70 70) '(139 220 237)))
     )
 
-    ;Process "SOV: user colors [fore/background]" with proc_id=1
+    ;Process "SOV2: user colors [fore/background]" with proc_id=1
     (list
       "СОВ2: свои цвета [пер./зад. план]"
       TRUE
@@ -237,9 +237,9 @@
       (quote (fil-clr-duo fk-sep-image fio_uni_layer 30 '(200 175 140) '(80 102 109)))
     )
 
-    ;Process "Duotone: user colors" with proc_id=9
+    ;Process "Duotone: user colors [fore/background]" with proc_id=9
     (list
-      "Двутон: свои цвета"
+      "Двутон: свои цвета [пер./зад. план]"
       TRUE
       (quote (fil-clr-duo fk-sep-image fio_uni_layer 55 fc_fore fc_back))
     )
@@ -272,9 +272,9 @@
       (quote (fil-clr-chrome fk-sep-image fio_uni_layer fc_imh fc_imw '(255 128 0) '(255 68 112) 60 60 0 100 TRUE FALSE))
     )
 
-    ;Process "Photochrom: user colors" with proc_id=14
+    ;Process "Photochrom: user colors [fore/background]" with proc_id=14
     (list
-      "Фотохром: свои цвета"
+      "Фотохром: свои цвета [пер./зад. план]"
       TRUE
       (quote (fil-clr-chrome fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore fc_back 60 60 0 100 FALSE FALSE))
     )
@@ -286,9 +286,9 @@
       (quote (fil-clr-dram fk-sep-image fio_uni_layer '(93 103 124)))
     )
 
-    ;Process "Dram: user colors" with proc_id=16
+    ;Process "Dram: user colors [foreground]" with proc_id=16
     (list
-      "Драм: свои цвета"
+      "Драм: свои цвета [пер. план]"
       TRUE
       (quote (fil-clr-dram fk-sep-image fio_uni_layer fc_fore))
     )
@@ -884,7 +884,7 @@ exit
   (list
   "Непочатов Станислав"
   "GPLv3"
-  "5 Ноября 2010"
+  "17 июня 2012"
   )
 )
 
@@ -1136,7 +1136,7 @@ exit
     fil-credits
     (list
     ""
-    )
+;;     )
   )
 )
 
@@ -1988,7 +1988,7 @@ sulf-exit
 
 	(if (> sharp_opc 0)
 	  (begin
-	    ;Код был взят из скрипта highpass sharpening, автор - Andreas Schönfelder
+	    ;Code was taken from highpass sharpening, author - Andreas Schönfelder
 	    ;http://registry.gimp.org/node/21165
 	    (set! grey_layer (car (gimp-layer-copy layer FALSE)))
 	    (gimp-image-insert-layer image grey_layer -1 -1)
