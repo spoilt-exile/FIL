@@ -1,4 +1,4 @@
-;FIL v1.7.2 release snapshot (ENG)
+;FIL v1.7.2 (Fix #1) release snapshot (ENG)
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -176,7 +176,7 @@
     
     ;Process "SOV2: normal" with proc_id=0
     (list
-      "SOV2: обычный"
+      "SOV2: normal"
       TRUE
       (quote (fil-clr-sov2 fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore '(217 70 70) '(139 220 237)))
     )
@@ -185,7 +185,7 @@
     (list
       "SOV2: user colors [fore/background]"
       TRUE
-      (quote (rsk-fil-clr-sov2 fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore fc_fore fc_back))
+      (quote (fil-clr-sov2 fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore fc_fore fc_back))
     )
 
     ;Process "Monochrome: b/w" with proc_id=2
