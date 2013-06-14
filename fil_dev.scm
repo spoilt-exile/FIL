@@ -1,4 +1,4 @@
-;FIL v1.7.2 (Fix #2) release snapshot (RUS)
+;FIL v1.7.2 (Fix #3) release snapshot (RUS)
 ;
 ;This program is free software; you can redistribute it and/or modify
 ;it under the terms of the GNU General Public License as published by
@@ -185,7 +185,7 @@
     (list
       "СОВ2: свои цвета [пер./зад. план]"
       TRUE
-      (quote (rsk-fil-clr-sov2 fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore fc_fore fc_back))
+      (quote (fil-clr-sov2 fk-sep-image fio_uni_layer fc_imh fc_imw fc_fore fc_fore fc_back))
     )
 
     ;Process "Monochrome: b/w" with proc_id=2
